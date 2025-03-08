@@ -12,8 +12,8 @@ export default async function ExperiencesPage() {
           Professional Experience
         </h1>
 
-        {/* Pass experiences to the ExperienceSection component */}
-        <ExperienceSection experiences={experiences} />
+        {/* Pass experiences to the ExperienceSection component with admin controls enabled */}
+        <ExperienceSection experiences={experiences} showAdminControls={true} />
       </div>
     </main>
   );

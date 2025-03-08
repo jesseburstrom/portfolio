@@ -4,18 +4,24 @@ import { useEffect, useState } from 'react';
 import { Experience } from '@/types';
 import { api } from '@/services/api';
 import { getAuthToken } from '@/lib/auth';
+import { usePathname } from 'next/navigation';
 
 interface ExperienceSectionProps {
   experiences?: Experience[];
+  showAdminControls?: boolean;
 }
 
-export default function ExperienceSection({ experiences: initialExperiences }: ExperienceSectionProps) {
+export default function ExperienceSection({ 
+  experiences: initialExperiences,
+  showAdminControls = false
+}: ExperienceSectionProps) {
   const [experiences, setExperiences] = useState<Experience[]>(initialExperiences || []);
   const [loading, setLoading] = useState(!initialExperiences);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const pathname = usePathname();
   
   const [formData, setFormData] = useState<Omit<Experience, '_id'>>({
     title: '',
@@ -160,6 +166,9 @@ export default function ExperienceSection({ experiences: initialExperiences }: E
     );
   }
 
+  // Only show admin controls if explicitly enabled and user is admin
+  const shouldShowAdminControls = showAdminControls && isAdmin;
+
   return (
     <section className="py-12 bg-white dark:bg-gray-900">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -168,7 +177,7 @@ export default function ExperienceSection({ experiences: initialExperiences }: E
             Experience
           </h2>
           
-          {isAdmin && !isCreating && !editingId && (
+          {shouldShowAdminControls && !isCreating && !editingId && (
             <button
               onClick={handleCreateNew}
               className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md"
@@ -179,7 +188,7 @@ export default function ExperienceSection({ experiences: initialExperiences }: E
         </div>
         
         {/* Experience Form for Admin */}
-        {isAdmin && (isCreating || editingId) && (
+        {shouldShowAdminControls && (isCreating || editingId) && (
           <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700 mb-8">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
               {isCreating ? 'Add New Experience' : 'Edit Experience'}
@@ -223,9 +232,9 @@ export default function ExperienceSection({ experiences: initialExperiences }: E
                   value={formData.timeframe}
                   onChange={(e) => setFormData({ ...formData, timeframe: e.target.value })}
                   className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
-                  placeholder="e.g., January 2022 - Present"
                   required
                   disabled={isSubmitting}
+                  placeholder="e.g., Jan 2020 - Present"
                 />
               </div>
               
@@ -236,34 +245,33 @@ export default function ExperienceSection({ experiences: initialExperiences }: E
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
-                  rows={4}
+                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white h-32"
                   required
                   disabled={isSubmitting}
-                />
+                ></textarea>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Order (Lower numbers shown first)
+                  Order
                 </label>
                 <input
                   type="number"
                   value={formData.order}
                   onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })}
                   className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
-                  min={0}
+                  required
                   disabled={isSubmitting}
                 />
               </div>
               
-              <div className="flex space-x-3">
+              <div className="flex space-x-4 pt-4">
                 <button
                   type="submit"
                   className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md disabled:opacity-50"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? 'Saving...' : 'Save Experience'}
+                  {isSubmitting ? 'Saving...' : 'Save'}
                 </button>
                 
                 <button
@@ -279,66 +287,53 @@ export default function ExperienceSection({ experiences: initialExperiences }: E
           </div>
         )}
         
-        {/* Experience List */}
-        {experiences.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-600 dark:text-gray-400">No experiences found.</p>
-            {isAdmin && !isCreating && (
-              <button
-                onClick={handleCreateNew}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-4"
-              >
-                Add Your First Experience
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-12">
-            {experiences
-              .sort((a, b) => (a.order || 0) - (b.order || 0))
-              .map((experience) => (
-                <div 
-                  key={experience._id}
-                  className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700"
-                >
-                  <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-4">
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+        {/* Experience Timeline */}
+        <div className="space-y-12">
+          {experiences
+            .sort((a, b) => (a.order || 0) - (b.order || 0))
+            .map((experience) => (
+              <div key={experience._id} className="relative">
+                <div className="flex flex-col md:flex-row">
+                  <div className="md:w-1/3 mb-4 md:mb-0">
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
                       {experience.title}
                     </h3>
-                    <div className="text-gray-600 dark:text-gray-400 mt-1 md:mt-0 text-sm md:text-right">
+                    <p className="text-gray-600 dark:text-gray-400">
+                      {experience.company}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500">
                       {experience.timeframe}
-                    </div>
+                    </p>
+                    
+                    {shouldShowAdminControls && (
+                      <div className="mt-2 space-x-2">
+                        <button
+                          onClick={() => handleEdit(experience)}
+                          className="text-blue-500 hover:text-blue-700 text-sm"
+                          disabled={isSubmitting}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(experience._id)}
+                          className="text-red-500 hover:text-red-700 text-sm"
+                          disabled={isSubmitting}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
                   
-                  <div className="text-gray-700 dark:text-gray-300 text-base mb-4">
-                    <span className="font-medium">Company: </span>{experience.company}
-                  </div>
-                  
-                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                    {experience.description}
-                  </p>
-                  
-                  {/* Admin Controls */}
-                  {isAdmin && (
-                    <div className="flex justify-end mt-4 space-x-2">
-                      <button
-                        onClick={() => handleEdit(experience)}
-                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(experience._id)}
-                        className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                      >
-                        Delete
-                      </button>
+                  <div className="md:w-2/3">
+                    <div className="prose dark:prose-invert max-w-none">
+                      <p>{experience.description}</p>
                     </div>
-                  )}
+                  </div>
                 </div>
-              ))}
-          </div>
-        )}
+              </div>
+            ))}
+        </div>
       </div>
     </section>
   );
