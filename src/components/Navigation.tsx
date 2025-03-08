@@ -4,22 +4,23 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { isAdmin, logout } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
 
 export default function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
-  const [isAdminUser, setIsAdminUser] = useState(false);
 
-  useEffect(() => {
-    setIsAdminUser(isAdmin());
-  }, []);
+   // Directly check admin status on every render.
+  const isAdminUser = isAdmin();
 
   const handleLogout = () => {
     logout();
-    setIsAdminUser(false);
     router.refresh();
   };
+
+    // Only render the navigation bar if the user is an admin.
+  if (!isAdminUser) {
+    return null;
+  }
 
   const navItems = [
     { href: '/', label: 'Home' },
