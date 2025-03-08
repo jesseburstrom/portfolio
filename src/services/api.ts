@@ -1,5 +1,5 @@
-import { AboutMe, Project, Skill } from '../types';
-import { fallbackAboutMe, fallbackProjects, fallbackSkills } from '../data/fallback';
+import { AboutMe, Project, Skill, Experience } from '../types';
+import { fallbackAboutMe, fallbackProjects, fallbackSkills, fallbackExperiences } from '../data/fallback';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -192,6 +192,70 @@ const updateAbout = async (about: Partial<AboutMe>, token: string): Promise<Abou
   return data.data;
 };
 
+// Experience API calls
+const getExperiences = async (): Promise<Experience[]> => {
+  return fetchWithFallback<Experience[]>('/experiences', fallbackExperiences);
+};
+
+const getExperience = async (id: string): Promise<Experience> => {
+  const response = await fetch(`${API_BASE_URL}/api/experiences/${id}`);
+  if (!response.ok) throw new Error('Failed to fetch experience');
+  const data = await response.json();
+  return data.data;
+};
+
+const createExperience = async (experience: Omit<Experience, '_id'>, token: string): Promise<Experience> => {
+  const response = await fetch(`${API_BASE_URL}/api/experiences`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(experience)
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to create experience');
+  }
+  
+  const data = await response.json();
+  return data.data;
+};
+
+const updateExperience = async (id: string, experience: Partial<Experience>, token: string): Promise<Experience> => {
+  const response = await fetch(`${API_BASE_URL}/api/experiences/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(experience)
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to update experience');
+  }
+  
+  const data = await response.json();
+  return data.data;
+};
+
+const deleteExperience = async (id: string, token: string): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/api/experiences/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to delete experience');
+  }
+};
+
 export const api = {
   getProjects: () => fetchWithFallback<Project[]>('/projects', fallbackProjects),
   getProject,
@@ -204,5 +268,10 @@ export const api = {
   updateSkill,
   deleteSkill,
   getAbout,
-  updateAbout
+  updateAbout,
+  getExperiences: () => fetchWithFallback<Experience[]>('/experiences', fallbackExperiences),
+  getExperience,
+  createExperience,
+  updateExperience,
+  deleteExperience
 };

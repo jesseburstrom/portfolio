@@ -1,6 +1,7 @@
 import { connectDB } from '../config/database';
 import Project from '../models/Project';
 import About from '../models/About';
+import Experience from '../models/Experience';
 import { config } from 'dotenv';
 
 // Load environment variables
@@ -28,6 +29,39 @@ const initializeDb = async () => {
       console.log('Sample project created');
     } else {
       console.log('Projects collection already initialized');
+    }
+
+    // Initialize Experiences if empty
+    const experienceCount = await Experience.countDocuments();
+    if (experienceCount === 0) {
+      const sampleExperiences = [
+        {
+          title: 'Senior Software Engineer',
+          company: 'Tech Innovations Inc.',
+          timeframe: 'January 2022 - Present',
+          description: 'Leading the development of cloud-based solutions using React, Node.js, and AWS. Mentoring junior developers and implementing CI/CD pipelines.',
+          order: 1
+        },
+        {
+          title: 'Full Stack Developer',
+          company: 'Digital Solutions Ltd.',
+          timeframe: 'March 2019 - December 2021',
+          description: 'Developed and maintained web applications using the MERN stack. Collaborated with design and product teams to deliver high-quality software solutions.',
+          order: 2
+        },
+        {
+          title: 'Frontend Developer',
+          company: 'Creative Web Agency',
+          timeframe: 'June 2017 - February 2019',
+          description: 'Created responsive and interactive user interfaces using React and CSS frameworks. Worked closely with UX designers to implement pixel-perfect designs.',
+          order: 3
+        }
+      ];
+
+      await Experience.insertMany(sampleExperiences);
+      console.log('Sample experiences created');
+    } else {
+      console.log('Experiences collection already initialized');
     }
 
     // Initialize About if empty

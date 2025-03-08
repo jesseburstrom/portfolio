@@ -46,3 +46,12 @@ export interface AboutMe {
     twitter?: string;
   };
 }
+
+export interface Experience {
+  _id: string;
+  title: string;
+  company: string;
+  timeframe: string;
+  description: string;
+  order?: number;
+}

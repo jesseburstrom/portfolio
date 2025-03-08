@@ -1,14 +1,16 @@
 import AboutSection from '@/components/AboutSection';
 import ProjectCard from '@/components/ProjectCard';
 import SkillsGrid from '@/components/SkillsGrid';
+import ExperienceSection from '@/components/ExperienceSection';
 import { api } from '@/services/api';
 
 export default async function Home() {
   // Fetch all data in parallel
-  const [projects, skills, about] = await Promise.all([
+  const [projects, skills, about, experiences] = await Promise.all([
     api.getProjects(),
     api.getSkills(),
     api.getAbout(),
+    api.getExperiences(),
   ]);
 
   return (
@@ -16,6 +18,9 @@ export default async function Home() {
       <div className="max-w-7xl mx-auto px-4 py-12 space-y-20">
         {/* About Section */}
         <AboutSection about={about} />
+
+        {/* Experience Section */}
+        <ExperienceSection experiences={experiences} />
 
         {/* Projects Section */}
         <section>

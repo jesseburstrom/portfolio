@@ -4,19 +4,21 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { isAdmin } from '@/lib/auth';
 import { api } from '@/services/api';
-import { Project, Skill, AboutMe } from '@/types';
+import { Project, Skill, AboutMe, Experience } from '@/types';
 import AdminSkillsManager from '@/components/AdminSkillsManager';
 import AdminProjectsManager from '@/components/AdminProjectsManager';
 import AdminAboutManager from '@/components/AdminAboutManager';
+import AdminExperienceManager from '@/components/AdminExperienceManager';
 
 export default function AdminPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState<'skills' | 'projects' | 'about'>('skills');
+  const [activeTab, setActiveTab] = useState<'skills' | 'projects' | 'about' | 'experiences'>('skills');
   const [skills, setSkills] = useState<Skill[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [about, setAbout] = useState<AboutMe | null>(null);
+  const [experiences, setExperiences] = useState<Experience[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,21 +28,26 @@ export default function AdminPage() {
     }
 
     // Set active tab based on URL parameter
-    if (tabParam === 'projects' || tabParam === 'about' || tabParam === 'skills') {
+    if (tabParam === 'projects' || tabParam === 'about' || tabParam === 'skills' || tabParam === 'experiences') {
       setActiveTab(tabParam);
     }
 
     const fetchData = async () => {
       try {
-        const [skillsData, projectsData, aboutData] = await Promise.all([
+        const [skillsData, projectsData, aboutData, experiencesData] = await Promise.all([
           api.getSkills(),
           api.getProjects(),
-          api.getAbout()
+          api.getAbout(),
+          api.getExperiences()
         ]);
+
+        console.log('Fetched experiences:', experiencesData);
+        console.log('Current active tab:', activeTab);
 
         setSkills(skillsData);
         setProjects(projectsData);
         setAbout(aboutData);
+        setExperiences(experiencesData);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -54,15 +61,17 @@ export default function AdminPage() {
   const handleRefreshData = async () => {
     try {
       setLoading(true);
-      const [skillsData, projectsData, aboutData] = await Promise.all([
+      const [skillsData, projectsData, aboutData, experiencesData] = await Promise.all([
         api.getSkills(),
         api.getProjects(),
-        api.getAbout()
+        api.getAbout(),
+        api.getExperiences()
       ]);
 
       setSkills(skillsData);
       setProjects(projectsData);
       setAbout(aboutData);
+      setExperiences(experiencesData);
     } catch (error) {
       console.error('Error refreshing data:', error);
     } finally {
@@ -97,7 +106,7 @@ export default function AdminPage() {
         {/* Tab Navigation */}
         <div className="border-b border-gray-200 dark:border-gray-700 mb-8">
           <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-            {(['skills', 'projects', 'about'] as const).map((tab) => (
+            {(['skills', 'projects', 'experiences', 'about'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -147,6 +156,16 @@ export default function AdminPage() {
           )}
           {activeTab === 'projects' && (
             <AdminProjectsManager projects={projects} onUpdate={handleRefreshData} />
+          )}
+          {activeTab === 'experiences' && (
+            <>
+              <div className="bg-yellow-100 dark:bg-yellow-900 p-4 mb-4 rounded-md">
+                <p className="text-yellow-800 dark:text-yellow-200">
+                  Debug info: Active tab is 'experiences'. Experience data length: {experiences.length}
+                </p>
+              </div>
+              <AdminExperienceManager experiences={experiences} onUpdate={handleRefreshData} />
+            </>
           )}
           {activeTab === 'about' && (
             <AdminAboutManager about={about} onUpdate={handleRefreshData} />

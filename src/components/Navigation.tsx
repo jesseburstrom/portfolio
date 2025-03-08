@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { isAdmin, logout } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 
@@ -21,14 +21,11 @@ export default function Navigation() {
     router.refresh();
   };
 
-    // Only render the navigation bar if the user is an admin.
-    if (!isAdminUser) {
-      return null;
-    }
   const navItems = [
     { href: '/', label: 'Home' },
     { href: '/skills', label: 'Skills' },
     { href: '/projects', label: 'Projects' },
+    { href: '/experiences', label: 'Experiences' },
     { href: '/about', label: 'About' },
   ];
 
@@ -52,26 +49,25 @@ export default function Navigation() {
             ))}
           </div>
           
-          {isAdminUser && (
-            <div className="flex items-center">
-              <Link
-                href="/admin"
-                className={`mr-4 px-3 py-2 inline-flex items-center text-sm font-medium ${
-                  pathname === '/admin'
-                    ? 'text-blue-600 dark:text-blue-400'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                }`}
-              >
+          <div className="flex items-center">
+            {isAdminUser ? (
+              <>
+                <span className="mr-4 px-3 py-2 inline-flex items-center text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Admin Panel
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <span className="mr-4 px-3 py-2 inline-flex items-center text-sm font-medium text-gray-500 dark:text-gray-400">
                 Admin Panel
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Logout
-              </button>
-            </div>
-          )}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </nav>

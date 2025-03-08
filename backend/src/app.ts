@@ -6,6 +6,7 @@ import projectRoutes from './routes/projectRoutes';
 import skillRoutes from './routes/skillRoutes';
 import aboutRoutes from './routes/aboutRoutes';
 import authRoutes from './routes/authRoutes';
+import experienceRoutes from './routes/experienceRoutes';
 import { AppError } from './utils/errorHandler';
 
 // Load environment variables
@@ -23,6 +24,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/skills', skillRoutes);
 app.use('/api/about', aboutRoutes);
+app.use('/api/experiences', experienceRoutes);
 
 // Handle 404 errors
 app.all('*', (req: Request, res: Response, next: NextFunction) => {
