@@ -1,6 +1,6 @@
 import { connectDB } from '../config/database';
 import Project from '../models/Project';
-import About from '../models/About';
+import AboutMe from '../models/AboutMe';
 import Experience from '../models/Experience';
 import { config } from 'dotenv';
 
@@ -64,14 +64,15 @@ const initializeDb = async () => {
       console.log('Experiences collection already initialized');
     }
 
-    // Initialize About if empty
-    const aboutCount = await About.countDocuments();
+    // Initialize AboutMe if empty
+    const aboutCount = await AboutMe.countDocuments();
     if (aboutCount === 0) {
       const sampleAbout = {
         name: 'Your Name',
         title: 'Full Stack Developer',
         bio: 'A passionate developer with experience in web development',
         location: 'Your Location',
+        phone: '+1 (123) 456-7890',
         email: 'your.email@example.com',
         socialLinks: {
           github: 'https://github.com/yourusername',
@@ -80,10 +81,10 @@ const initializeDb = async () => {
         }
       };
 
-      await About.create(sampleAbout);
+      await AboutMe.create(sampleAbout);
       console.log('About information created');
     } else {
-      console.log('About collection already initialized');
+      console.log('AboutMe collection already initialized');
     }
 
     console.log('Database initialization completed');

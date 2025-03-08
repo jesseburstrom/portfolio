@@ -5,6 +5,7 @@ export interface IAboutMe extends Document {
   title: string;
   bio: string;
   location: string;
+  phone?: string;
   email: string;
   imageUrl?: string;
   imageData?: string;
@@ -36,6 +37,10 @@ const AboutMeSchema = new Schema<IAboutMe>({
     required: [true, 'Location is required'],
     trim: true,
   },
+  phone: {
+    type: String,
+    trim: true,
+  },
   email: {
     type: String,
     required: [true, 'Email is required'],
@@ -50,18 +55,9 @@ const AboutMeSchema = new Schema<IAboutMe>({
     type: String,
   },
   socialLinks: {
-    github: {
-      type: String,
-      trim: true,
-    },
-    linkedin: {
-      type: String,
-      trim: true,
-    },
-    twitter: {
-      type: String,
-      trim: true,
-    },
+    github: String,
+    linkedin: String,
+    twitter: String,
   },
 }, {
   timestamps: true,

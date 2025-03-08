@@ -5,6 +5,7 @@ export interface IAbout extends Document {
   title: string;
   bio: string;
   location: string;
+  phone?: string;
   email: string;
   socialLinks: {
     github?: string;
@@ -32,6 +33,10 @@ const AboutSchema = new Schema<IAbout>({
   location: {
     type: String,
     required: [true, 'Location is required'],
+    trim: true,
+  },
+  phone: {
+    type: String,
     trim: true,
   },
   email: {
