@@ -3,13 +3,7 @@
 import { useState, useEffect } from 'react';
 import { isAdmin, getAuthToken } from '@/lib/auth';
 import { api } from '@/services/api';
-
-interface Skill {
-  _id: string;
-  name: string;
-  category: 'frontend' | 'backend' | 'tools' | 'other';
-  proficiency: number;
-}
+import { Skill } from '@/types';
 
 const CATEGORY_LABELS = {
   frontend: 'Frontend Development',
@@ -30,7 +24,8 @@ export default function SkillsPage() {
   const [formData, setFormData] = useState<Omit<Skill, '_id'>>({
     name: '',
     category: 'frontend',
-    proficiency: 1
+    proficiency: 1,
+    icon: ''
   });
 
   useEffect(() => {
@@ -40,15 +35,8 @@ export default function SkillsPage() {
   const fetchSkills = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/skills`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      });
-      if (!response.ok) throw new Error('Failed to fetch skills');
-      const data = await response.json();
-      setSkills(Array.isArray(data) ? data : []);
+      const skillsData = await api.getSkills();
+      setSkills(skillsData);
       setError(null);
     } catch (err) {
       console.error('Error fetching skills:', err);
@@ -67,7 +55,8 @@ export default function SkillsPage() {
     setFormData({
       name: '',
       category: 'frontend',
-      proficiency: 1
+      proficiency: 1,
+      icon: ''
     });
     setIsCreating(false);
     setEditingId(null);
@@ -79,7 +68,8 @@ export default function SkillsPage() {
     setFormData({
       name: '',
       category: 'frontend',
-      proficiency: 1
+      proficiency: 1,
+      icon: ''
     });
   };
   
@@ -89,7 +79,8 @@ export default function SkillsPage() {
     setFormData({
       name: skill.name,
       category: skill.category,
-      proficiency: skill.proficiency
+      proficiency: skill.proficiency,
+      icon: skill.icon || ''
     });
   };
   
@@ -106,34 +97,12 @@ export default function SkillsPage() {
       }
       
       if (isCreating) {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/skills`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-            'Cache-Control': 'no-cache',
-          },
-          body: JSON.stringify(formData),
-        });
-        
-        if (!response.ok) throw new Error('Failed to create skill');
-        const newSkill = await response.json();
-        setSkills([...skills, newSkill]);
+        await api.createSkill(formData, token);
       } else if (editingId) {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/skills/${editingId}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(formData),
-        });
-        
-        if (!response.ok) throw new Error('Failed to update skill');
-        const updatedSkill = await response.json();
-        setSkills(skills.map(skill => skill._id === editingId ? updatedSkill : skill));
+        await api.updateSkill(editingId, formData, token);
       }
       
+      fetchSkills();
       resetForm();
     } catch (error) {
       console.error('Error saving skill:', error);
@@ -144,12 +113,9 @@ export default function SkillsPage() {
   };
   
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this skill?')) {
-      return;
-    }
+    if (!window.confirm('Are you sure you want to delete this skill?')) return;
     
     try {
-      setIsSubmitting(true);
       const token = getAuthToken();
       
       if (!token) {
@@ -157,15 +123,8 @@ export default function SkillsPage() {
         return;
       }
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/skills/${id}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      
-      if (!response.ok) throw new Error('Failed to delete skill');
-      setSkills(skills.filter(skill => skill._id !== id));
+      await api.deleteSkill(id, token);
+      fetchSkills();
       
       if (editingId === id) {
         resetForm();
@@ -173,11 +132,29 @@ export default function SkillsPage() {
     } catch (error) {
       console.error('Error deleting skill:', error);
       alert('Failed to delete skill');
-    } finally {
-      setIsSubmitting(false);
     }
   };
-
+  
+  const handleCancel = () => {
+    resetForm();
+  };
+  
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'proficiency' ? parseInt(value, 10) : value
+    }));
+  };
+  
+  const groupedSkills = skills.reduce((acc, skill) => {
+    if (!acc[skill.category]) {
+      acc[skill.category] = [];
+    }
+    acc[skill.category].push(skill);
+    return acc;
+  }, {} as Record<string, Skill[]>);
+  
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -185,170 +162,185 @@ export default function SkillsPage() {
       </div>
     );
   }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-red-500">{error}</div>
-      </div>
-    );
-  }
-
-  // Group skills by category
-  const groupedSkills = skills.reduce((acc, skill) => {
-    const category = skill.category || 'other';
-    if (!acc[category]) {
-      acc[category] = [];
-    }
-    acc[category].push(skill);
-    return acc;
-  }, {} as Record<string, Skill[]>);
-
-  // Get categories that have skills
-  const activeCategories = Object.entries(groupedSkills).filter(([_, skills]) => skills.length > 0);
-
+  
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-4xl font-bold text-center">Skills</h1>
-        
-        {isAdminUser && !isCreating && !editingId && (
-          <button
-            onClick={handleCreateNew}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md"
-          >
-            Add New Skill
-          </button>
-        )}
-      </div>
-      
-      {/* Skill Form for Admin */}
-      {isAdminUser && (isCreating || editingId) && (
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700 mb-8">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-            {isCreating ? 'Add New Skill' : 'Edit Skill'}
-          </h3>
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-8 flex justify-between items-center">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Skills</h1>
           
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Name
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
-                required
-                disabled={isSubmitting}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Category
-              </label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value as Skill['category'] })}
-                className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
-                disabled={isSubmitting}
-              >
-                <option value="frontend">Frontend</option>
-                <option value="backend">Backend</option>
-                <option value="tools">Tools</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Proficiency (1-5)
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="5"
-                value={formData.proficiency}
-                onChange={(e) => setFormData({ ...formData, proficiency: parseInt(e.target.value) })}
-                className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
-                disabled={isSubmitting}
-              />
-            </div>
-            
-            <div className="flex space-x-3">
-              <button
-                type="submit"
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md disabled:opacity-50"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? 'Saving...' : 'Save Skill'}
-              </button>
-              
-              <button
-                type="button"
-                onClick={resetForm}
-                className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md disabled:opacity-50"
-                disabled={isSubmitting}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+          {isAdminUser && !isCreating && !editingId && (
+            <button
+              onClick={handleCreateNew}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md"
+            >
+              Add New Skill
+            </button>
+          )}
         </div>
-      )}
-      
-      {activeCategories.length === 0 ? (
-        <div className="text-center text-gray-500 dark:text-gray-400">
-          No skills found. {isAdminUser && 'Use the Add New Skill button to add skills.'}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-          {activeCategories.map(([category, categorySkills]) => (
-            <div key={category} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
-              <h2 className="text-2xl font-semibold mb-6 text-gray-800 dark:text-white">
-                {CATEGORY_LABELS[category as keyof typeof CATEGORY_LABELS]}
-              </h2>
-              <div className="space-y-6">
-                {categorySkills.map((skill) => (
-                  <div key={skill._id} className="flex flex-col space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-gray-700 dark:text-gray-300">{skill.name}</span>
-                      <div className="flex items-center">
-                        <span className="text-sm text-gray-600 dark:text-gray-400 mr-4">
-                          {skill.proficiency}/5
-                        </span>
-                        {isAdminUser && (
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleEdit(skill)}
-                              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDelete(skill._id)}
-                              className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-500 dark:bg-blue-400 transition-all duration-300"
-                        style={{ width: `${(skill.proficiency / 5) * 100}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
+        
+        {error && (
+          <div className="mb-8 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            {error}
+          </div>
+        )}
+        
+        {(isCreating || editingId) && isAdminUser && (
+          <div className="mb-8 bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
+              {isCreating ? 'Add New Skill' : 'Edit Skill'}
+            </h2>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                  required
+                  disabled={isSubmitting}
+                />
               </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Category
+                </label>
+                <select
+                  name="category"
+                  value={formData.category}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                  required
+                  disabled={isSubmitting}
+                >
+                  <option value="frontend">Frontend Development</option>
+                  <option value="backend">Backend Development</option>
+                  <option value="tools">Development Tools</option>
+                  <option value="other">Other Skills</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Proficiency (1-5)
+                </label>
+                <input
+                  type="number"
+                  name="proficiency"
+                  min="1"
+                  max="5"
+                  value={formData.proficiency}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                  required
+                  disabled={isSubmitting}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Icon (optional)
+                </label>
+                <input
+                  type="text"
+                  name="icon"
+                  value={formData.icon}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                  placeholder="Icon name or class"
+                  disabled={isSubmitting}
+                />
+              </div>
+              
+              <div className="flex space-x-4 pt-4">
+                <button
+                  type="submit"
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md disabled:opacity-50"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Saving...' : 'Save'}
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md"
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+        
+        <div className="space-y-8">
+          {Object.entries(groupedSkills).map(([category, categorySkills]) => (
+            <div key={category} className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  {CATEGORY_LABELS[category as keyof typeof CATEGORY_LABELS]}
+                </h2>
+              </div>
+              
+              <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+                {categorySkills.map(skill => (
+                  <li key={skill._id} className="px-6 py-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">{skill.name}</h3>
+                        <div className="mt-1 flex items-center">
+                          <div className="flex space-x-1">
+                            {[...Array(5)].map((_, i) => (
+                              <span
+                                key={i}
+                                className={`w-5 h-5 rounded-full ${
+                                  i < skill.proficiency
+                                    ? 'bg-blue-500'
+                                    : 'bg-gray-300 dark:bg-gray-600'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {isAdminUser && (
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleEdit(skill)}
+                            className="text-blue-500 hover:text-blue-700"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(skill._id)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </div>
           ))}
+          
+          {Object.keys(groupedSkills).length === 0 && !loading && (
+            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 text-center">
+              <p className="text-gray-700 dark:text-gray-300">No skills found. Add some skills to get started!</p>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

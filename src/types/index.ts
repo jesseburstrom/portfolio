@@ -37,6 +37,7 @@ export interface AboutMe {
   title: string;
   bio: string;
   location: string;
+  phone?: string;
   email: string;
   imageUrl?: string;
   imageData?: string;

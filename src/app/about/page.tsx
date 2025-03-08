@@ -6,6 +6,7 @@ import { api } from '@/services/api';
 import { AboutMe } from '@/types';
 import { fileToBase64, validateImage, resizeImage } from '@/utils/imageUtils';
 import Image from 'next/image';
+import ReactMarkdown from 'react-markdown';
 
 export default function AboutPage() {
   const [about, setAbout] = useState<AboutMe | null>(null);
@@ -17,6 +18,7 @@ export default function AboutPage() {
   const [imagePreview, setImagePreview] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [editedAbout, setEditedAbout] = useState<AboutMe | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     setIsAdminUser(isAdmin());
@@ -171,14 +173,22 @@ export default function AboutPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Profile Image
                 </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageSelect}
-                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
-                  disabled={isSubmitting}
-                  ref={fileInputRef}
-                />
+                <div className="flex items-center space-x-3">
+                  <label className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">
+                    Choose File
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageSelect}
+                      className="hidden"
+                      disabled={isSubmitting}
+                      ref={fileInputRef}
+                    />
+                  </label>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {selectedImage ? selectedImage.name : 'No file chosen'}
+                  </span>
+                </div>
                 {imagePreview && (
                   <div className="mt-2 flex justify-center">
                     <img
@@ -192,16 +202,37 @@ export default function AboutPage() {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Bio
+                  Bio <span className="text-xs text-gray-500">(Supports Markdown)</span>
                 </label>
-                <textarea
-                  value={editedAbout.bio}
-                  onChange={(e) => setEditedAbout({ ...editedAbout, bio: e.target.value })}
-                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
-                  rows={4}
-                  required
-                  disabled={isSubmitting}
-                />
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div className="text-xs text-gray-500">
+                      You can use **bold**, *italic*, - bullet lists, and other Markdown formatting
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowPreview(!showPreview)}
+                      className="text-sm text-blue-500 hover:text-blue-700"
+                    >
+                      {showPreview ? 'Edit' : 'Preview'}
+                    </button>
+                  </div>
+                  
+                  {showPreview ? (
+                    <div className="p-3 border rounded dark:bg-gray-800 dark:border-gray-700 prose dark:prose-invert max-w-none min-h-[8rem]">
+                      <ReactMarkdown>{editedAbout.bio}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <textarea
+                      value={editedAbout.bio}
+                      onChange={(e) => setEditedAbout({ ...editedAbout, bio: e.target.value })}
+                      className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                      rows={4}
+                      required
+                      disabled={isSubmitting}
+                    ></textarea>
+                  )}
+                </div>
               </div>
               
               <div>
@@ -214,6 +245,20 @@ export default function AboutPage() {
                   onChange={(e) => setEditedAbout({ ...editedAbout, location: e.target.value })}
                   className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
                   required
+                  disabled={isSubmitting}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  value={editedAbout.phone || ''}
+                  onChange={(e) => setEditedAbout({ ...editedAbout, phone: e.target.value })}
+                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                  placeholder="+1 (123) 456-7890"
                   disabled={isSubmitting}
                 />
               </div>
@@ -330,7 +375,9 @@ export default function AboutPage() {
               <div className="space-y-6">
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">About Me</h2>
-                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{about.bio}</p>
+                  <div className="prose dark:prose-invert max-w-none">
+                    <ReactMarkdown>{about.bio}</ReactMarkdown>
+                  </div>
                 </div>
 
                 <div>
@@ -339,6 +386,14 @@ export default function AboutPage() {
                     <p className="text-gray-700 dark:text-gray-300">
                       <span className="font-medium">Location:</span> {about.location}
                     </p>
+                    {about.phone && (
+                      <p className="text-gray-700 dark:text-gray-300">
+                        <span className="font-medium">Phone:</span>{' '}
+                        <a href={`tel:${about.phone}`} className="text-blue-600 dark:text-blue-400 hover:underline">
+                          {about.phone}
+                        </a>
+                      </p>
+                    )}
                     <p className="text-gray-700 dark:text-gray-300">
                       <span className="font-medium">Email:</span>{' '}
                       <a href={`mailto:${about.email}`} className="text-blue-600 dark:text-blue-400 hover:underline">

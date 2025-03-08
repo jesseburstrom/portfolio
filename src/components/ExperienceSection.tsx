@@ -5,15 +5,18 @@ import { Experience } from '@/types';
 import { api } from '@/services/api';
 import { getAuthToken } from '@/lib/auth';
 import { usePathname } from 'next/navigation';
+import ReactMarkdown from 'react-markdown';
 
 interface ExperienceSectionProps {
   experiences?: Experience[];
   showAdminControls?: boolean;
+  onExperienceUpdate?: (updatedExperiences: Experience[]) => void;
 }
 
 export default function ExperienceSection({ 
   experiences: initialExperiences,
-  showAdminControls = false
+  showAdminControls = false,
+  onExperienceUpdate
 }: ExperienceSectionProps) {
   const [experiences, setExperiences] = useState<Experience[]>(initialExperiences || []);
   const [loading, setLoading] = useState(!initialExperiences);
@@ -30,6 +33,7 @@ export default function ExperienceSection({
     description: '',
     order: 0
   });
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     // Check if user is admin
@@ -55,6 +59,16 @@ export default function ExperienceSection({
 
     fetchExperiences();
   }, [initialExperiences]);
+
+  useEffect(() => {
+    console.log('Experiences state updated:', experiences);
+  }, [experiences]);
+
+  useEffect(() => {
+    if (onExperienceUpdate && experiences.length > 0) {
+      onExperienceUpdate(experiences);
+    }
+  }, [experiences, onExperienceUpdate]);
 
   const resetForm = () => {
     setFormData({
@@ -106,10 +120,18 @@ export default function ExperienceSection({
       
       if (isCreating) {
         const newExperience = await api.createExperience(formData, token);
-        setExperiences([...experiences, newExperience]);
+        console.log('Created experience:', newExperience);
+        // Update state with the new experience
+        setExperiences(prevExperiences => [...prevExperiences, newExperience]);
       } else if (editingId) {
         const updatedExperience = await api.updateExperience(editingId, formData, token);
-        setExperiences(experiences.map(exp => exp._id === editingId ? updatedExperience : exp));
+        console.log('Updated experience:', updatedExperience);
+        // Update state by replacing the edited experience
+        setExperiences(prevExperiences => 
+          prevExperiences.map(exp => 
+            exp._id === editingId ? updatedExperience : exp
+          )
+        );
       }
       
       resetForm();
@@ -136,8 +158,12 @@ export default function ExperienceSection({
       }
       
       await api.deleteExperience(id, token);
-      setExperiences(experiences.filter(exp => exp._id !== id));
+      console.log('Deleted experience with ID:', id);
       
+      // Update the local state to remove the deleted experience using functional update
+      setExperiences(prevExperiences => prevExperiences.filter(exp => exp._id !== id));
+      
+      // Reset form if we were editing the deleted experience
       if (editingId === id) {
         resetForm();
       }
@@ -240,15 +266,36 @@ export default function ExperienceSection({
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Description
+                  Description <span className="text-xs text-gray-500">(Supports Markdown)</span>
                 </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white h-32"
-                  required
-                  disabled={isSubmitting}
-                ></textarea>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div className="text-xs text-gray-500">
+                      You can use **bold**, *italic*, - bullet lists, and other Markdown formatting
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowPreview(!showPreview)}
+                      className="text-sm text-blue-500 hover:text-blue-700"
+                    >
+                      {showPreview ? 'Edit' : 'Preview'}
+                    </button>
+                  </div>
+                  
+                  {showPreview ? (
+                    <div className="p-3 border rounded dark:bg-gray-800 dark:border-gray-700 prose dark:prose-invert max-w-none min-h-[8rem]">
+                      <ReactMarkdown>{formData.description}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white h-32"
+                      required
+                      disabled={isSubmitting}
+                    ></textarea>
+                  )}
+                </div>
               </div>
               
               <div>
@@ -289,50 +336,53 @@ export default function ExperienceSection({
         
         {/* Experience Timeline */}
         <div className="space-y-12">
-          {experiences
-            .sort((a, b) => (a.order || 0) - (b.order || 0))
-            .map((experience) => (
-              <div key={experience._id} className="relative">
-                <div className="flex flex-col md:flex-row">
-                  <div className="md:w-1/3 mb-4 md:mb-0">
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                      {experience.title}
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400">
-                      {experience.company}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-500">
-                      {experience.timeframe}
-                    </p>
+          {experiences && experiences.length > 0 ? 
+            experiences
+              .filter(experience => experience && experience.title) // Filter out any invalid experiences
+              .sort((a, b) => (a.order || 0) - (b.order || 0))
+              .map((experience) => (
+                <div key={experience._id} className="relative">
+                  <div className="flex flex-col md:flex-row">
+                    <div className="md:w-1/3 mb-4 md:mb-0">
+                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                        {experience.title}
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        {experience.company}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-500">
+                        {experience.timeframe}
+                      </p>
+                      
+                      {shouldShowAdminControls && (
+                        <div className="mt-2 space-x-2">
+                          <button
+                            onClick={() => handleEdit(experience)}
+                            className="text-blue-500 hover:text-blue-700 text-sm"
+                            disabled={isSubmitting}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(experience._id)}
+                            className="text-red-500 hover:text-red-700 text-sm"
+                            disabled={isSubmitting}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     
-                    {shouldShowAdminControls && (
-                      <div className="mt-2 space-x-2">
-                        <button
-                          onClick={() => handleEdit(experience)}
-                          className="text-blue-500 hover:text-blue-700 text-sm"
-                          disabled={isSubmitting}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(experience._id)}
-                          className="text-red-500 hover:text-red-700 text-sm"
-                          disabled={isSubmitting}
-                        >
-                          Delete
-                        </button>
+                    <div className="md:w-2/3">
+                      <div className="prose dark:prose-invert max-w-none">
+                        <ReactMarkdown>{experience.description}</ReactMarkdown>
                       </div>
-                    )}
-                  </div>
-                  
-                  <div className="md:w-2/3">
-                    <div className="prose dark:prose-invert max-w-none">
-                      <p>{experience.description}</p>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            : <p>No experiences to display.</p>}
         </div>
       </div>
     </section>

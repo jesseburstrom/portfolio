@@ -88,6 +88,7 @@ export const fallbackAboutMe: AboutMe = {
   title: 'Full Stack Developer',
   bio: 'Passionate full-stack developer with 5 years of experience building web applications. Specialized in React, Node.js, and cloud technologies.',
   location: 'Stockholm, Sweden',
+  phone: '+1 (123) 456-7890',
   email: 'contact@example.com',
   imageUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=400&h=400',
   socialLinks: {

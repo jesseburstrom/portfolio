@@ -185,7 +185,7 @@ const updateAbout = async (about: Partial<AboutMe>, token: string): Promise<Abou
   
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.message || 'Failed to update about info');
+    throw new Error(error.message || 'Failed to update about information');
   }
   
   const data = await response.json();
@@ -198,10 +198,7 @@ const getExperiences = async (): Promise<Experience[]> => {
 };
 
 const getExperience = async (id: string): Promise<Experience> => {
-  const response = await fetch(`${API_BASE_URL}/api/experiences/${id}`);
-  if (!response.ok) throw new Error('Failed to fetch experience');
-  const data = await response.json();
-  return data.data;
+  return fetchWithFallback<Experience>(`/experiences/${id}`, fallbackExperiences[0]);
 };
 
 const createExperience = async (experience: Omit<Experience, '_id'>, token: string): Promise<Experience> => {
@@ -220,7 +217,7 @@ const createExperience = async (experience: Omit<Experience, '_id'>, token: stri
   }
   
   const data = await response.json();
-  return data.data;
+  return data;
 };
 
 const updateExperience = async (id: string, experience: Partial<Experience>, token: string): Promise<Experience> => {
@@ -239,7 +236,7 @@ const updateExperience = async (id: string, experience: Partial<Experience>, tok
   }
   
   const data = await response.json();
-  return data.data;
+  return data;
 };
 
 const deleteExperience = async (id: string, token: string): Promise<void> => {
@@ -269,7 +266,7 @@ export const api = {
   deleteSkill,
   getAbout,
   updateAbout,
-  getExperiences: () => fetchWithFallback<Experience[]>('/experiences', fallbackExperiences),
+  getExperiences,
   getExperience,
   createExperience,
   updateExperience,
