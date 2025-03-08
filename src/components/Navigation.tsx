@@ -8,16 +8,29 @@ import { useRouter } from 'next/navigation';
 
 export default function Navigation() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const [isAdminUser, setIsAdminUser] = useState(false);
 
-  // Check admin status on client-side only
+  // Check admin status on client-side whenever route changes
   useEffect(() => {
-    setIsAdminUser(isAdmin());
-  }, []);
+    const checkAdminStatus = () => {
+      setIsAdminUser(isAdmin());
+    };
+    
+    checkAdminStatus();
+    
+    // Add event listener for storage changes (for when token is added/removed)
+    window.addEventListener('storage', checkAdminStatus);
+    
+    return () => {
+      window.removeEventListener('storage', checkAdminStatus);
+    };
+  }, [pathname, searchParams]);
 
   const handleLogout = () => {
     logout();
+    setIsAdminUser(false);
     router.refresh();
   };
 
@@ -50,7 +63,7 @@ export default function Navigation() {
           </div>
           
           <div className="flex items-center">
-            {isAdminUser ? (
+            {isAdminUser && (
               <>
                 <span className="mr-4 px-3 py-2 inline-flex items-center text-sm font-medium text-gray-500 dark:text-gray-400">
                   Admin Panel
@@ -62,10 +75,6 @@ export default function Navigation() {
                   Logout
                 </button>
               </>
-            ) : (
-              <span className="mr-4 px-3 py-2 inline-flex items-center text-sm font-medium text-gray-500 dark:text-gray-400">
-                Admin Panel
-              </span>
             )}
           </div>
         </div>

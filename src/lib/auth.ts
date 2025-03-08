@@ -15,6 +15,8 @@ export const login = async (username: string, password: string) => {
   const data = await response.json();
   if (typeof window !== 'undefined') {
     localStorage.setItem('adminToken', data.token);
+    // Dispatch storage event to notify other components
+    window.dispatchEvent(new Event('storage'));
   }
   return data;
 };
@@ -22,6 +24,8 @@ export const login = async (username: string, password: string) => {
 export const logout = () => {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('adminToken');
+    // Dispatch storage event to notify other components
+    window.dispatchEvent(new Event('storage'));
   }
 };
 
