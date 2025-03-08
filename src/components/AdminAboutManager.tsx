@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { getAuthToken } from '@/lib/auth';
 import { AboutMe } from '@/types';
 import { api } from '@/services/api';
+import { fileToBase64, validateImage, resizeImage } from '@/utils/imageUtils';
 
 interface AdminAboutManagerProps {
   about: AboutMe;
@@ -13,13 +14,41 @@ interface AdminAboutManagerProps {
 export default function AdminAboutManager({ about, onUpdate }: AdminAboutManagerProps) {
   const [editedAbout, setEditedAbout] = useState<AboutMe>(about);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>(about.imageData || about.imageUrl || '');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validation = validateImage(file);
+    if (!validation.valid) {
+      alert(validation.message);
+      return;
+    }
+
+    setSelectedImage(file);
+    const base64 = await fileToBase64(file);
+    const resized = await resizeImage(base64);
+    setImagePreview(resized);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
       setIsSubmitting(true);
-      await api.updateAbout(editedAbout, getAuthToken() || '');
+      const updatedAbout = { ...editedAbout };
+      
+      if (selectedImage) {
+        const base64 = await fileToBase64(selectedImage);
+        const resized = await resizeImage(base64);
+        updatedAbout.imageData = resized;
+        updatedAbout.imageUrl = undefined;
+      }
+      
+      await api.updateAbout(updatedAbout, getAuthToken() || '');
       await onUpdate();
     } catch (error) {
       console.error('Error updating about information:', error);
@@ -58,6 +87,36 @@ export default function AdminAboutManager({ about, onUpdate }: AdminAboutManager
             required
             disabled={isSubmitting}
           />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Profile Image
+          </label>
+          <div className="space-y-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageSelect}
+              className="block w-full text-sm text-gray-500 dark:text-gray-400
+                       file:mr-4 file:py-2 file:px-4
+                       file:rounded-md file:border-0
+                       file:text-sm file:font-semibold
+                       file:bg-blue-50 file:text-blue-700
+                       hover:file:bg-blue-100
+                       dark:file:bg-blue-900 dark:file:text-blue-200"
+              disabled={isSubmitting}
+            />
+            {imagePreview && (
+              <div className="mt-2">
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="max-w-xs h-auto rounded-lg shadow-md"
+                />
+              </div>
+            )}
+          </div>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

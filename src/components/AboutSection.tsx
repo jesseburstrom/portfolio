@@ -8,6 +8,17 @@ export default function AboutSection({ about }: { about: AboutMe }) {
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-2">{about.name}</h1>
           <p className="text-xl text-gray-600 dark:text-gray-300">{about.title}</p>
+          
+          {/* Image under title */}
+          {(about.imageData || about.imageUrl) && (
+            <div className="mt-4 flex justify-center">
+              <img
+                src={about.imageData || about.imageUrl}
+                alt={about.name}
+                className="max-w-xs h-auto rounded-lg shadow-md"
+              />
+            </div>
+          )}
         </div>
         
         <div className="mb-8">

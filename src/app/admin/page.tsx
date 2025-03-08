@@ -35,7 +35,7 @@ export default function AdminPage() {
         const [skillsData, projectsData, aboutData] = await Promise.all([
           api.getSkills(),
           api.getProjects(),
-          api.getAboutMe()
+          api.getAbout()
         ]);
 
         setSkills(skillsData);
@@ -57,7 +57,7 @@ export default function AdminPage() {
       const [skillsData, projectsData, aboutData] = await Promise.all([
         api.getSkills(),
         api.getProjects(),
-        api.getAboutMe()
+        api.getAbout()
       ]);
 
       setSkills(skillsData);
@@ -114,6 +114,31 @@ export default function AdminPage() {
             ))}
           </nav>
         </div>
+
+        {/* About Information Summary (shown only when About tab is active) */}
+        {activeTab === 'about' && (
+          <div className="mb-8 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+            <div className="text-center">
+              <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">{about.name}</h3>
+              <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">{about.title}</p>
+              
+              {/* Display profile image */}
+              {(about.imageData || about.imageUrl) && (
+                <div className="flex justify-center mb-6">
+                  <img 
+                    src={about.imageData || about.imageUrl} 
+                    alt={about.name} 
+                    className="w-48 h-auto rounded-lg shadow-md" 
+                  />
+                </div>
+              )}
+              
+              <p className="text-gray-700 dark:text-gray-300 max-w-2xl mx-auto">
+                {about.bio.length > 150 ? `${about.bio.substring(0, 150)}...` : about.bio}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Tab Content */}
         <div className="mt-8">

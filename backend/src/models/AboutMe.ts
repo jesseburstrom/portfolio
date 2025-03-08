@@ -6,6 +6,8 @@ export interface IAboutMe extends Document {
   bio: string;
   location: string;
   email: string;
+  imageUrl?: string;
+  imageData?: string;
   socialLinks: {
     github?: string;
     linkedin?: string;
@@ -40,6 +42,12 @@ const AboutMeSchema = new Schema<IAboutMe>({
     trim: true,
     lowercase: true,
     match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email'],
+  },
+  imageUrl: {
+    type: String,
+  },
+  imageData: {
+    type: String,
   },
   socialLinks: {
     github: {

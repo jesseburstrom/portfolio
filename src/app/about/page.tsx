@@ -46,7 +46,18 @@ export default function AboutPage() {
           <div className="px-6 py-8">
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{about.name}</h1>
-              <p className="text-xl text-gray-600 dark:text-gray-400">{about.title}</p>
+              <p className="text-xl text-gray-600 dark:text-gray-400 mb-4">{about.title}</p>
+              
+              {/* Display profile image */}
+              {(about.imageData || about.imageUrl) && (
+                <div className="flex justify-center mb-6">
+                  <img 
+                    src={about.imageData || about.imageUrl} 
+                    alt={about.name}
+                    className="w-48 h-auto rounded-lg shadow-md"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="space-y-6">

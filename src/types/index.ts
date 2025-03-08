@@ -10,11 +10,6 @@ type ImageSource = {
   imageData: string;
 };
 
-export interface Project extends ImageSource {
-  _id: string;
-  title: string;
-  description: string;
-  technologies: string[];
 export interface Project {
   _id: string;
   title: string;
@@ -43,6 +38,8 @@ export interface AboutMe {
   bio: string;
   location: string;
   email: string;
+  imageUrl?: string;
+  imageData?: string;
   socialLinks: {
     github?: string;
     linkedin?: string;

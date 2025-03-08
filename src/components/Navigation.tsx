@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { isAdmin, logout } from '@/lib/auth';
@@ -8,9 +9,12 @@ import { useRouter } from 'next/navigation';
 export default function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
+  const [isAdminUser, setIsAdminUser] = useState(false);
 
-   // Directly check admin status on every render.
-  const isAdminUser = isAdmin();
+  // Check admin status on client-side only
+  useEffect(() => {
+    setIsAdminUser(isAdmin());
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -18,10 +22,9 @@ export default function Navigation() {
   };
 
     // Only render the navigation bar if the user is an admin.
-  if (!isAdminUser) {
-    return null;
-  }
-
+    if (!isAdminUser) {
+      return null;
+    }
   const navItems = [
     { href: '/', label: 'Home' },
     { href: '/skills', label: 'Skills' },
@@ -51,7 +54,16 @@ export default function Navigation() {
           
           {isAdminUser && (
             <div className="flex items-center">
-              <span className="text-sm text-gray-500 dark:text-gray-400 mr-4">Admin Mode</span>
+              <Link
+                href="/admin"
+                className={`mr-4 px-3 py-2 inline-flex items-center text-sm font-medium ${
+                  pathname === '/admin'
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                Admin Panel
+              </Link>
               <button
                 onClick={handleLogout}
                 className="px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
