@@ -5,6 +5,14 @@ import { AppError, catchAsync } from '../utils/errorHandler';
 export const login = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
   const { username, password } = req.body;
   
+   // --- DEBUGGING ---
+   console.log('Login Attempt:', { username, password });
+   console.log('Env Vars:', {
+       ADMIN_USERNAME: process.env.ADMIN_USERNAME,
+       ADMIN_PASSWORD: process.env.ADMIN_PASSWORD
+   });
+   // --- END DEBUGGING ---
+   
   // Compare with environment variables for admin credentials
   if (username === process.env.ADMIN_USERNAME && 
       password === process.env.ADMIN_PASSWORD) {
