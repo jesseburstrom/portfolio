@@ -5,7 +5,7 @@ import { isAdmin, getAuthToken } from '@/lib/auth';
 import { api } from '@/services/api';
 import { Project } from '@/types';
 import Image from 'next/image';
-import { fileToBase64, validateImage, resizeImage } from '@/utils/imageUtils';
+import { fileToBase64, validateImage, resizeImage, compressImageToMaxSize } from '@/utils/imageUtils';
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -99,8 +99,8 @@ export default function ProjectsPage() {
 
     setSelectedImage(file);
     const base64 = await fileToBase64(file);
-    const resized = await resizeImage(base64);
-    setImagePreview(resized);
+    const compressed = await compressImageToMaxSize(base64, 300); // Limit to 300KB
+    setImagePreview(compressed);
   };
 
   const handleTechKeyPress = (e: React.KeyboardEvent) => {
@@ -141,11 +141,11 @@ export default function ProjectsPage() {
         }
         
         const base64 = await fileToBase64(selectedImage);
-        const resized = await resizeImage(base64);
+        const compressed = await compressImageToMaxSize(base64, 300); // Limit to 300KB
         
         const projectToCreate = {
           ...formData,
-          imageData: resized,
+          imageData: compressed,
           date: new Date().toISOString().split('T')[0]
         };
 
@@ -157,8 +157,8 @@ export default function ProjectsPage() {
         
         if (selectedImage) {
           const base64 = await fileToBase64(selectedImage);
-          const resized = await resizeImage(base64);
-          updatedProject.imageData = resized;
+          const compressed = await compressImageToMaxSize(base64, 300); // Limit to 300KB
+          updatedProject.imageData = compressed;
           updatedProject.imageUrl = undefined;
         } else if (imagePreview) {
           // Keep existing image if no new one was selected
@@ -279,11 +279,24 @@ export default function ProjectsPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Project Image
                 </label>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md"
+                    disabled={isSubmitting}
+                  >
+                    Browse for image...
+                  </button>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {selectedImage ? selectedImage.name : imagePreview ? 'Current image selected' : 'No image selected'}
+                  </span>
+                </div>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handleImageSelect}
-                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                  className="hidden"
                   disabled={isSubmitting}
                   ref={fileInputRef}
                 />
@@ -415,12 +428,12 @@ export default function ProjectsPage() {
                 key={project._id}
                 className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300"
               >
-                <div className="relative pb-[56.25%] bg-gray-50 dark:bg-gray-900">
+                <div className="relative pb-[56.25%] bg-gray-50 dark:bg-gray-900 mt-4">
                   <Image
                     src={project.imageData || project.imageUrl || '/placeholder-project.svg'}
                     alt={project.title}
                     fill
-                    className="object-contain"
+                    className="object-contain p-2"
                     priority={false}
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   />

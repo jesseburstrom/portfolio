@@ -240,16 +240,41 @@ const updateExperience = async (id: string, experience: Partial<Experience>, tok
 };
 
 const deleteExperience = async (id: string, token: string): Promise<void> => {
-  const response = await fetch(`${API_BASE_URL}/api/experiences/${id}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
+  console.log(`Attempting to delete experience with ID: ${id}`);
+  console.log(`API URL: ${API_BASE_URL}/api/experiences/${id}`);
   
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to delete experience');
+  try {
+    // Make sure the URL is properly formatted
+    const url = new URL(`${API_BASE_URL}/api/experiences/${id}`);
+    
+    const response = await fetch(url.toString(), {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log(`Delete response status: ${response.status}`);
+    
+    if (!response.ok) {
+      let errorMessage = `Failed to delete experience (Status: ${response.status})`;
+      
+      try {
+        const errorData = await response.json();
+        console.error('Delete experience error response:', errorData);
+        errorMessage = errorData.message || errorMessage;
+      } catch (jsonError) {
+        console.error('Error parsing error response:', jsonError);
+      }
+      
+      throw new Error(errorMessage);
+    }
+    
+    console.log('Experience deleted successfully');
+  } catch (error) {
+    console.error('Error in deleteExperience function:', error);
+    throw error;
   }
 };
 

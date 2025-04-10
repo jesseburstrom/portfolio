@@ -61,9 +61,9 @@ export default function AdminPage() {
   const handleRefreshData = async () => {
     try {
       setLoading(true);
-      const [skillsData, projectsData, aboutData, experiencesData] = await Promise.all([
-        api.getSkills(),
+      const [projectsData, skillsData, aboutData, experiencesData] = await Promise.all([
         api.getProjects(),
+        api.getSkills(),
         api.getAbout(),
         api.getExperiences()
       ]);

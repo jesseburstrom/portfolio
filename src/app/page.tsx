@@ -19,9 +19,6 @@ export default async function Home() {
         {/* About Section */}
         <AboutSection about={about} />
 
-        {/* Experience Section */}
-        <ExperienceSection experiences={experiences} />
-
         {/* Projects Section */}
         <section>
           <h2 className="text-3xl font-bold mb-8">Projects</h2>
@@ -32,6 +29,8 @@ export default async function Home() {
           </div>
         </section>
 
+        {/* Experience Section */}
+        <ExperienceSection experiences={experiences} />
         {/* Skills Section */}
         <section>
           <h2 className="text-3xl font-bold mb-8">Skills</h2>

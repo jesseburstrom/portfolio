@@ -60,16 +60,6 @@ export default function ExperienceSection({
     fetchExperiences();
   }, [initialExperiences]);
 
-  useEffect(() => {
-    console.log('Experiences state updated:', experiences);
-  }, [experiences]);
-
-  useEffect(() => {
-    if (onExperienceUpdate && experiences.length > 0) {
-      onExperienceUpdate(experiences);
-    }
-  }, [experiences, onExperienceUpdate]);
-
   const resetForm = () => {
     setFormData({
       title: '',
@@ -134,6 +124,9 @@ export default function ExperienceSection({
         );
       }
       
+      // Notify parent after state update
+      setTimeout(() => notifyParentOfChanges(), 0);
+      
       resetForm();
     } catch (error) {
       console.error('Error saving experience:', error);
@@ -157,11 +150,17 @@ export default function ExperienceSection({
         return;
       }
       
-      await api.deleteExperience(id, token);
-      console.log('Deleted experience with ID:', id);
+      console.log('Attempting to delete experience with ID:', id);
       
-      // Update the local state to remove the deleted experience using functional update
+      // Optimistically update the UI first
       setExperiences(prevExperiences => prevExperiences.filter(exp => exp._id !== id));
+      
+      // Then make the API call
+      await api.deleteExperience(id, token);
+      console.log('Successfully deleted experience with ID:', id);
+      
+      // Notify parent after state update
+      setTimeout(() => notifyParentOfChanges(), 0);
       
       // Reset form if we were editing the deleted experience
       if (editingId === id) {
@@ -169,9 +168,23 @@ export default function ExperienceSection({
       }
     } catch (error) {
       console.error('Error deleting experience:', error);
-      alert('Failed to delete experience');
+      alert('Failed to delete experience. Please check the console for details.');
+      
+      // Refresh the experiences list to ensure UI is in sync with backend
+      try {
+        const refreshedExperiences = await api.getExperiences();
+        setExperiences(refreshedExperiences);
+      } catch (refreshError) {
+        console.error('Error refreshing experiences:', refreshError);
+      }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const notifyParentOfChanges = () => {
+    if (onExperienceUpdate) {
+      onExperienceUpdate(experiences);
     }
   };
 

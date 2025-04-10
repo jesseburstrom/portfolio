@@ -11,12 +11,12 @@ export default function ProjectCard({ project }: ProjectCardProps) {
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
-      <div className="relative pb-[56.25%]">
+      <div className="relative pb-[56.25%] bg-gray-50 dark:bg-gray-900 mt-4">
         <Image
           src={imageSource}
           alt={project.title}
           fill
-          className="object-contain"
+          className="object-contain p-2"
           priority={false}
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
         />

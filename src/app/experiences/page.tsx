@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import ExperienceSection from '@/components/ExperienceSection';
 import { api } from '@/services/api';
 import { Experience } from '@/types';
@@ -24,11 +24,10 @@ export default function ExperiencesPage() {
     fetchExperiences();
   }, []);
 
-  // Handler for experience updates from the ExperienceSection component
-  const handleExperienceUpdate = (updatedExperiences: Experience[]) => {
-    console.log('Parent received updated experiences:', updatedExperiences);
+  const handleExperienceUpdate = useCallback((updatedExperiences: Experience[]) => {
+    console.log('Parent received updated experiences:', updatedExperiences.length);
     setExperiences(updatedExperiences);
-  };
+  }, []);
 
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-900">
