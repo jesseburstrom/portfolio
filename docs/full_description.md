@@ -1,1384 +1,838 @@
-Okay, here is a detailed technical description of the project based on the provided file structure and code, focusing on the Next.js frontend (in `src/`) and the Express backend (in `backend/`).
+Okay, here is a detailed technical description of the project based on the provided file structure and contents, focusing on the Express backend and the Next.js/React frontend (as indicated by the `src` directory structure and `.tsx` files, not Flutter).
 
-**Overall Project Overview**
+**Project Overview**
 
-This project is a full-stack personal portfolio website. It allows showcasing skills, projects, professional experience, and personal information ("About Me"). It features a public-facing frontend built with Next.js (React) and a private admin interface for content management. The backend is an Express.js API that serves data stored in a MongoDB database. Authentication for the admin section is handled via JWT (JSON Web Tokens).
+This project is a full-stack personal portfolio website designed to showcase projects, skills, professional experience, and personal information. It consists of two main parts:
 
-**Backend (Express in `backend/`)**
+1.  **Backend:** A RESTful API built with Node.js and Express, using MongoDB (via Mongoose) for data persistence. It handles data management and authentication.
+2.  **Frontend:** A dynamic web application built with Next.js (using the App Router) and React, styled with Tailwind CSS. It consumes the backend API to display portfolio content and provides an administrative interface for managing this content.
 
-The backend is a RESTful API built using Node.js and the Express framework, written in TypeScript.
+---
+
+**Backend (Express in `backend` folder)**
+
+The backend is responsible for serving data via a REST API and handling administrative authentication.
 
 1.  **Core Framework & Setup (`app.ts`)**
-    *   **Framework:** Express.js.
-    *   **Language:** TypeScript, compiled to JavaScript for execution.
-    *   **Entry Point:** `backend/src/app.ts` initializes the Express application.
+    *   **Framework:** Express.js is the core web framework.
     *   **Middleware:**
         *   `express.json()`: Parses incoming JSON request bodies.
-        *   `cors`: Enables Cross-Origin Resource Sharing. Configured to allow requests from `https://fluttersystems.com` when `isOnline` is true, otherwise allows all origins (`*`). Handles standard methods (GET, POST, PUT, DELETE, OPTIONS) and allows `Content-Type` and `Authorization` headers.
-        *   `dotenv`: Loads environment variables from a `.env` file (managed by `backend/src/scripts/setupEnv.ts`).
-    *   **Routing:** API routes are modularized and imported from the `routes/` directory. A base route (`/portfolio`) can be prepended based on the `isOnline` flag.
-    *   **Error Handling:**
-        *   Handles 404 errors for undefined routes using `app.all('*', ...)`.
-        *   A global error handler middleware catches errors, standardizes the response format (`status`, `message`, optional `stack` in development), and uses the custom `AppError` class (`utils/errorHandler.ts`).
-        *   `catchAsync` utility (`utils/errorHandler.ts`) wraps asynchronous route handlers to pass errors to the global handler automatically.
-    *   **Database Connection:** Connects to MongoDB using Mongoose via `connectDB` (`config/database.ts`) upon application startup.
-    *   **Server:** Starts the Express server, listening on the port specified by `process.env.PORT` (defaulting to 5000). Includes graceful shutdown handling for `SIGTERM` and `SIGINT`.
-    *   **Static Files & SPA Fallback:** Configured to serve static files (likely the built frontend) from a `dist` directory when `isOnline` is true and includes a fallback route (`app.get('*', ...)`) to serve `index.html` for client-side routing. *Note: There's a potential conflict as `app.listen` is called twice.*
+        *   `cors`: Enables Cross-Origin Resource Sharing, allowing the frontend (potentially running on a different domain/port during development) to interact with the API.
+        *   **Custom Logging:** A simple middleware logs incoming requests (`method`, `url`, `timestamp`).
+        *   **404 Handler:** Catches requests to undefined routes using `app.all('*', ...)`.
+        *   **Global Error Handler:** A centralized middleware catches errors (operational or programming), standardizes the error response format (status, message, stack trace in development), and uses the `AppError` class.
+    *   **Environment Variables:** `dotenv` is used to load configuration (port, database URI, admin credentials, JWT secret) from a `.env` file. `backend/src/scripts/setupEnv.ts` helps create a default `.env` file.
+    *   **Database Connection:** `config/database.ts` handles the connection to MongoDB using Mongoose. The connection is established before the server starts listening.
+    *   **Server Initialization:** The Express app listens on the port specified by `process.env.PORT` (defaulting to 5000).
+    *   **Graceful Shutdown:** Handles `SIGTERM` and `SIGINT` signals to close the server and database connection properly.
 
-2.  **Database (`config/database.ts`, `models/`)**
-    *   **ODM:** Mongoose is used as the Object Data Mapper for MongoDB.
-    *   **Connection:** `connectDB` establishes the connection using the `MONGODB_URI` environment variable. Includes basic error handling on connection failure.
-    *   **Models:** Mongoose schemas define the structure and validation rules for the application's data entities:
-        *   `AboutMe.ts`: Stores personal information (name, title, bio, contact, social links, image). Includes fields for both `imageUrl` (URL) and `imageData` (Base64 string). Uses `findOneAndUpdate` with `upsert: true` in the controller as typically only one document exists.
-        *   `Project.ts`: Represents portfolio projects (title, description, technologies, image, links, date). Also supports `imageUrl` and `imageData`. Includes a `pre('save')` hook to ensure at least one image source is provided.
-        *   `Skill.ts`: Defines skills with name, category (`frontend`, `backend`, `tools`, `other`), proficiency (1-5), and an optional icon string.
-        *   `Experience.ts`: Represents work or professional experiences (title, company, timeframe, description, order for sorting).
-    *   **Validation:** Schemas include type definitions, `required` constraints, `trim`, `enum`, `min`/`max` validators, and email format matching (`AboutMeSchema`).
+2.  **API Structure & Routing (`routes/*`)**
+    *   The API follows a RESTful pattern, with routes organized by resource type (auth, projects, skills, about, experiences).
+    *   **Router:** `express.Router` is used to modularize route definitions.
+    *   **Base Path:** All API routes are prefixed with `/api`.
+    *   **Resource Routes:**
+        *   `/api/auth`: Handles admin login (`authRoutes.ts`).
+        *   `/api/projects`: CRUD operations for projects (`projectRoutes.ts`).
+        *   `/api/skills`: CRUD operations for skills (`skillRoutes.ts`).
+        *   `/api/about`: GET and PUT operations for the single "About Me" document (`aboutRoutes.ts`).
+        *   `/api/experiences`: CRUD operations for work experiences (`experienceRoutes.ts`).
+    *   **Validation:** `express-validator` is used in route definitions (e.g., `projectValidation`, `skillValidation`) to validate request bodies before they reach the controllers.
 
-3.  **Routing & Controllers (`routes/`, `controllers/`)**
-    *   **Structure:** Routes are organized by resource (about, auth, experience, project, skill). Each route file defines endpoints and associates them with controller functions.
-    *   **Controllers:** Contain the business logic for handling requests. They interact with Mongoose models to perform CRUD operations. Use `catchAsync` for handling asynchronous operations.
-    *   **Validation:** `express-validator` (`body()`, `validationResult`) is used in some routes (e.g., `aboutRoutes`, `projectRoutes`, `skillRoutes`) to validate request bodies before they reach the controller logic.
-    *   **Specific Routes:**
-        *   `/api/auth`: Handles admin login (`/login`).
-        *   `/api/about`: GET (public), PUT (admin only) for the single AboutMe document.
-        *   `/api/projects`: GET all (public), POST (admin only), GET/:id (public), PATCH/:id (admin only), DELETE/:id (admin only).
-        *   `/api/skills`: GET all (public), POST (admin only), GET/:id (public), PATCH/:id (admin only), DELETE/:id (admin only).
-        *   `/api/experiences`: GET all (public), POST (admin only), GET/:id (public), PUT/:id (admin only), DELETE/:id (admin only).
+3.  **Controllers (`controllers/*`)**
+    *   Contain the core logic for handling requests for each resource.
+    *   Interact with Mongoose models to perform database operations.
+    *   Use the `catchAsync` utility (`utils/errorHandler.ts`) to wrap asynchronous functions, ensuring errors are passed to the global error handler.
+    *   Structure responses consistently (e.g., `{ status: 'success', data: ... }` or directly returning data/arrays).
+    *   Handle specific logic like the `upsert` operation in `aboutController.ts` to ensure only one "About Me" document exists.
 
-4.  **Authentication & Authorization (`controllers/authController.ts`, `middleware/authMiddleware.ts`)**
-    *   **Strategy:** Simple role-based access control (Admin only).
-    *   **Login:** `authController.login` compares provided username/password against environment variables (`ADMIN_USERNAME`, `ADMIN_PASSWORD`).
-    *   **Token:** If credentials match, it generates a JWT signed with `JWT_SECRET` (env variable), containing an `isAdmin: true` payload, with a 24-hour expiry.
-    *   **Middleware:** `authMiddleware.adminAuth` protects admin-only routes. It extracts the JWT from the `Authorization: Bearer <token>` header, verifies it using `jwt.verify` and the `JWT_SECRET`. If valid, it attaches `isAdmin: true` to the `req` object; otherwise, it throws an `AppError` (401).
+4.  **Data Models (`models/*`)**
+    *   **ORM/ODM:** Mongoose is used as the Object Data Mapper (ODM) for MongoDB.
+    *   **Schemas:** Define the structure and validation rules for each data collection:
+        *   `AboutMe.ts`: Stores personal information, bio, contact details, social links, and optionally an `imageData` (base64 string) or `imageUrl`. Uses `setDefaultsOnInsert` and validation (required fields, email format).
+        *   `Project.ts`: Defines project details, including title, description, technologies (array of strings), links, date, and `imageData`/`imageUrl`. Includes a `pre('save')` hook to ensure at least one image source is provided.
+        *   `Skill.ts`: Defines skills with name, category (`enum`), proficiency (1-5 `min`/`max`), and an optional icon string.
+        *   `Experience.ts`: Defines work experience entries with title, company, timeframe, description, and an `order` field for sorting.
+    *   **Timestamps:** Most schemas include `timestamps: true` to automatically add `createdAt` and `updatedAt` fields.
+    *   *Note: `About.ts` seems like an older or potentially unused version compared to `AboutMe.ts`.*
 
-5.  **Scripts (`scripts/`)**
-    *   `setupEnv.ts`: Generates a default `.env` file if one doesn't exist.
-    *   `initDb.ts` / `initializeDb.ts`: Scripts to populate the database with initial/sample data for AboutMe, Projects, and Experiences if the collections are empty. Useful for setting up a new environment.
-    *   `resetAboutCollection.ts`: Script to specifically drop and re-initialize the `AboutMe` collection, possibly used during schema changes.
+5.  **Authentication & Authorization (`authController.ts`, `authMiddleware.ts`)**
+    *   **Strategy:** Uses JSON Web Tokens (JWT) for stateless authentication.
+    *   **Login (`authController.login`):**
+        *   Compares provided `username` and `password` against `ADMIN_USERNAME` and `ADMIN_PASSWORD` environment variables.
+        *   If credentials match, it signs a JWT containing `{ isAdmin: true }` using `jsonwebtoken` and the `JWT_SECRET` from `.env`.
+        *   The token has an expiration time ('24h').
+        *   Returns the token to the client upon successful login.
+    *   **Middleware (`authMiddleware.adminAuth`):**
+        *   Applied to protected routes (POST, PUT, PATCH, DELETE operations on portfolio content).
+        *   Extracts the token from the `Authorization: Bearer <token>` header.
+        *   Verifies the token using `jwt.verify` and the `JWT_SECRET`.
+        *   If valid, sets `req.isAdmin = true` and calls `next()`.
+        *   If invalid or missing, calls `next()` with an `AppError` (401 Unauthorized).
 
-**Frontend (Next.js/React in `src/`)**
+6.  **Error Handling (`utils/errorHandler.ts`)**
+    *   **`AppError` Class:** Custom error class extending `Error`, adding `statusCode` and `status` ('fail' or 'error') properties for consistent error handling.
+    *   **`catchAsync` Utility:** A higher-order function that wraps async route handlers, catching any rejected promises and passing the error to Express's `next` function, which directs it to the global error handler.
 
-The frontend is built using Next.js (App Router) with React and TypeScript, styled with Tailwind CSS.
+7.  **Database Scripts (`scripts/*`)**
+    *   Utilities for database management:
+        *   `initDb.ts` / `initializeDb.ts`: Scripts to populate the database with initial/sample data for AboutMe, Projects, and Experiences if the collections are empty.
+        *   `resetAboutCollection.ts`: Specific script to drop and reinitialize the AboutMe collection (likely used during schema changes).
+        *   `setupEnv.ts`: Creates a basic `.env` file with default values if one doesn't exist.
 
-1.  **Core Framework & Structure**
-    *   **Framework:** Next.js 13+ using the App Router.
+---
+
+**Frontend (Next.js/React in `src` folder)**
+
+The frontend is a modern web application built with Next.js, responsible for displaying the portfolio and providing an admin interface.
+
+1.  **Core Framework & Setup**
+    *   **Framework:** Next.js (version likely 13+ using the App Router).
     *   **Language:** TypeScript (`.tsx` files).
-    *   **Structure:** Follows the App Router convention:
-        *   `app/`: Contains layouts (`layout.tsx`) and pages (`page.tsx` within subdirectories).
-        *   `components/`: Reusable React components.
-        *   `lib/`: Utility functions, particularly for authentication (`auth.ts`).
-        *   `services/`: API interaction logic (`api.ts`).
-        *   `types/`: TypeScript type definitions shared across the app.
-        *   `utils/`: General utility functions (e.g., `imageUtils.ts`).
-        *   `data/`: Fallback data (`fallback.ts`).
-    *   **Routing:** Handled by Next.js based on the directory structure within `app/`. Client-side navigation uses `<Link>` from `next/link`.
+    *   **UI Library:** React.
+    *   **Routing:** Next.js App Router (`src/app` directory). File-system based routing where folders define route segments and `page.tsx` files define the UI for that segment.
+    *   **Layout:** `src/app/layout.tsx` defines the root layout, including HTML structure, body, fonts (`next/font/google`), and wraps children in the main `<Navigation>` component (using `Suspense` for potential loading states).
+    *   **Styling:** Tailwind CSS is used for utility-first styling (inferred from class names like `dark:bg-gray-900`, `text-xl`, `py-12`, `grid`, etc.). Global styles are likely defined in `src/app/globals.css`.
 
-2.  **UI Components (`components/`)**
-    *   **Presentational Components:** `AboutSection`, `ProjectCard`, `SkillsGrid`, `ExperienceSection` are responsible for displaying data fetched from the API.
-    *   **Navigation:** `Navigation.tsx` provides the main site navigation links. It dynamically checks admin status using `lib/auth.ts` to show/hide admin links and the logout button.
-    *   **Admin Components:** `AdminHeader`, `AdminAboutManager`, `AdminExperienceManager`, `AdminProjectsManager`, `AdminSkillsManager` provide the UI and logic for CRUD operations within the admin dashboard (`/admin` page). These components typically include forms and interact with the API via `services/api.ts`.
-    *   **Styling:** Tailwind CSS utility classes are used extensively for styling (e.g., `dark:bg-gray-900`, `rounded-lg`, `shadow-lg`, `py-12`, `px-4`). The `globals.css` file likely contains base Tailwind directives. Dark mode support is implemented (`dark:` prefix).
-    *   **Markdown Rendering:** `react-markdown` is used in components like `AboutPage`, `AdminAboutManager`, `ExperienceSection`, and `AdminExperienceManager` to render Markdown content fetched from the backend (e.g., bio, descriptions).
+2.  **Directory Structure**
+    *   `src/app`: Core application routes and pages (App Router).
+    *   `src/components`: Reusable React components (both display and interactive/admin components).
+    *   `src/lib`: Utility functions, particularly authentication logic (`auth.ts`).
+    *   `src/services`: API interaction layer (`api.ts`).
+    *   `src/types`: TypeScript type definitions (`index.ts`, `skill.ts`).
+    *   `src/utils`: General utility functions, especially for image handling (`imageUtils.ts`).
+    *   `src/data`: Fallback data used by the API service (`fallback.ts`).
 
-3.  **Pages (`app/`)**
-    *   **Server Components:** The main home page (`app/page.tsx`) is likely a Server Component, fetching initial data (`projects`, `skills`, `about`, `experiences`) directly on the server using `api.ts`.
-    *   **Client Components:** Most other pages (`about`, `skills`, `projects`, `experiences`, `admin`, `admin/login`) are marked with `'use client'` because they rely on hooks (`useState`, `useEffect`, `useRouter`, `useSearchParams`), handle user interactions, manage state, and perform client-side data fetching/mutation.
-    *   **Admin Pages:**
-        *   `/admin/login`: Provides a form for admin login, using `lib/auth.ts` to authenticate and redirect.
-        *   `/admin`: The main admin dashboard. It fetches all manageable data, uses URL parameters (`?tab=...`) for tab navigation between different management sections (Skills, Projects, Experiences, About), and renders the corresponding `Admin*Manager` components. It checks for admin status and redirects if the user is not authenticated.
+3.  **Component Structure (`components/*`)**
+    *   **Display Components:** `AboutSection`, `ProjectCard`, `SkillsGrid`, `ExperienceSection`. These primarily receive data as props and render it. Some use `ReactMarkdown` to render Markdown content (e.g., Bio, Experience Description).
+    *   **Navigation:** `Navigation.tsx` handles site navigation using `next/link`. It's a client component (`'use client'`) to check `isAdmin` status dynamically using `localStorage` via `lib/auth.ts` and update the UI accordingly (showing/hiding admin links/logout button).
+    *   **Admin Components:**
+        *   `AdminDashboard.tsx`: The main container for the admin section (`'use client'`). Manages tabs (Skills, Projects, Experiences, About), fetches all necessary data via `api.ts`, and renders the appropriate manager component based on the active tab. It uses `useRouter` and `useSearchParams` to sync the active tab with the URL query parameter (`?tab=...`).
+        *   `Admin*Manager.tsx` (e.g., `AdminSkillsManager`, `AdminProjectsManager`, `AdminExperienceManager`, `AdminAboutManager`): Client components (`'use client'`) providing forms and lists for CRUD operations on specific data types. They manage local form state (`useState`), handle user input, interact with `api.ts` (using the auth token from `lib/auth.ts`), manage submission states (`isSubmitting`), and call the `onUpdate` prop (passed down from `AdminDashboard`) to refresh data after successful operations.
+        *   `AdminHeader.tsx`: A simple client component showing an "Admin Mode" indicator and logout button if the user is an admin.
 
 4.  **State Management**
-    *   Primarily uses React's built-in hooks: `useState` for managing component-level state (form data, loading status, editing state) and `useEffect` for side effects like fetching data on component mount or reacting to changes.
+    *   Primarily uses React's built-in hooks (`useState`, `useEffect`) within client components (`'use client'`) for managing local component state (form data, loading states, editing states, etc.).
+    *   Global state seems minimal, relying on fetching data as needed or passing data down through props (e.g., from `AdminDashboard` to manager components). Admin status is managed via `localStorage` and checked dynamically in relevant components.
 
 5.  **API Interaction (`services/api.ts`)**
     *   Centralizes all communication with the backend Express API.
-    *   Defines async functions for each API endpoint (e.g., `getProjects`, `createSkill`, `updateAbout`, `deleteExperience`).
     *   Uses `fetch` to make HTTP requests.
-    *   Includes a `fetchWithFallback` helper function that attempts to fetch from the API but returns predefined fallback data (from `data/fallback.ts`) if the request fails or times out, providing some resilience.
-    *   Handles passing the JWT token in the `Authorization` header for protected API calls.
-    *   Uses the `NEXT_PUBLIC_API_URL` environment variable for the backend base URL.
+    *   Reads the backend URL from `process.env.NEXT_PUBLIC_API_URL`.
+    *   Includes functions for each API endpoint (e.g., `getProjects`, `createSkill`, `updateAbout`, `deleteExperience`).
+    *   Handles sending the JWT token in the `Authorization` header for protected routes.
+    *   Implements a `fetchWithFallback` mechanism: Attempts to fetch from the API, but if the request fails (e.g., timeout, network error, non-OK response), it logs a warning and returns predefined fallback data from `src/data/fallback.ts`. This ensures the frontend can still display *some* content even if the backend is unavailable.
+    *   Parses JSON responses and handles potential errors by throwing `Error` objects.
 
-6.  **Authentication Handling (`lib/auth.ts`)**
-    *   Provides client-side functions for:
-        *   `login`: Sends credentials to the backend `/api/auth/login` endpoint, stores the received JWT in `localStorage`.
-        *   `logout`: Removes the JWT from `localStorage`.
-        *   `getAuthToken`: Retrieves the token from `localStorage`.
-        *   `isAdmin`: Checks if a token exists in `localStorage`.
-    *   Uses `window.dispatchEvent(new Event('storage'))` on login/logout, potentially to help synchronize auth state across different parts of the application or browser tabs, although components primarily rely on re-checking `isAdmin()` via `useEffect`.
+6.  **Authentication Handling (`lib/auth.ts`, `Navigation.tsx`, Admin Components)**
+    *   **Login:** `AdminLogin` page (`src/app/admin/login/page.tsx`) collects credentials and calls `login` from `lib/auth.ts`.
+    *   **Storage:** `lib/auth.ts` stores the JWT token received from the backend in `localStorage` (`adminToken`).
+    *   **Status Check:** `isAdmin()` function checks for the presence of the token in `localStorage`. Client components like `Navigation` and admin pages/components use this to conditionally render UI elements or redirect (e.g., `AdminDashboard` redirects if `isAdmin()` is false).
+    *   **Logout:** `logout()` function removes the token from `localStorage`.
+    *   **Token Usage:** Admin components retrieve the token using `getAuthToken()` and pass it to `api.ts` functions that require authorization.
+    *   **Event Listener:** `lib/auth.ts` dispatches a `storage` event on login/logout, and `Navigation.tsx` listens for this event to update its state immediately without requiring a full page refresh.
 
-7.  **Image Handling (`utils/imageUtils.ts`)**
-    *   Provides client-side utilities for handling image uploads in admin forms:
-        *   `fileToBase64`: Converts `File` objects to Base64 strings for preview and sending to the backend (`imageData` field).
-        *   `validateImage`: Checks file type and size before processing.
-        *   `resizeImage`: Uses HTML `canvas` to resize images client-side to specified dimensions and quality, reducing payload size.
-        *   `compressImageToMaxSize`: Attempts to compress an image iteratively by reducing quality and dimensions until it's below a target size (in KB).
+7.  **Image Handling (`utils/imageUtils.ts`, Admin Components, `ProjectCard`)**
+    *   **Upload:** Admin components (e.g., `AdminProjectsManager`, `AdminAboutManager`) use an `<input type="file">`.
+    *   **Client-Side Processing:** When a file is selected:
+        *   `validateImage`: Checks if the file is an image and within size limits (e.g., < 5MB).
+        *   `fileToBase64`: Converts the `File` object to a base64 string for preview and transmission.
+        *   `resizeImage` / `compressImageToMaxSize`: Resizes the image (e.g., max 800x600) and compresses it (e.g., target < 300-500KB) using a `<canvas>` element, adjusting JPEG quality to meet size targets. This is done client-side *before* sending to the backend.
+    *   **Preview:** The generated (resized/compressed) base64 string is used to display an image preview (`<img>` tag or `next/image`) in the admin form.
+    *   **Storage:** The final compressed base64 string is stored in the `imageData` field of the relevant Mongoose model (Project, AboutMe) via the API.
+    *   **Display:** Components like `ProjectCard` and `AboutSection` prioritize rendering `imageData` if present, otherwise falling back to `imageUrl` (if provided) or a placeholder. `next/image` is used for optimized image delivery.
 
-**Data Flow**
+8.  **Data Types (`types/*`)**
+    *   TypeScript interfaces (`Project`, `Skill`, `AboutMe`, `Experience`) define the shape of the data used throughout the frontend, ensuring type safety. These generally mirror the Mongoose schemas on the backend.
+    *   *Note: There's a slight redundancy with `Skill` defined in both `index.ts` and `skill.ts`.*
 
-1.  **Public View:**
-    *   User navigates to a page (e.g., `/projects`).
-    *   The Next.js frontend component (client or server) calls the corresponding function in `services/api.ts` (e.g., `api.getProjects()`).
-    *   `api.ts` makes a GET request to the backend Express API (`/api/projects`).
-    *   The backend route (`projectRoutes`) maps the request to the `getAllProjects` controller.
-    *   The controller interacts with the `Project` Mongoose model to fetch data from MongoDB.
-    *   The controller sends a JSON response containing the projects back to the frontend.
-    *   The frontend component receives the data, updates its state (if a client component), and renders the UI (e.g., using `ProjectCard` components). Fallback data is used if the API call fails.
-2.  **Admin Action (e.g., Update Skill):**
-    *   Admin navigates to `/admin?tab=skills`.
-    *   The `AdminPage` component fetches skills via `api.getSkills()` and renders `AdminSkillsManager`.
-    *   Admin clicks "Edit" on a skill, populating the edit form within `AdminSkillsManager`.
-    *   Admin modifies the skill details and clicks "Save".
-    *   The `handleSubmitEdit` function in `AdminSkillsManager` is triggered.
-    *   It calls `api.updateSkill(id, updatedData, token)`, retrieving the token via `getAuthToken()`.
-    *   `api.ts` makes a PATCH request to `/api/skills/:id` on the backend, including the token in the `Authorization` header.
-    *   The backend route (`skillRoutes`) verifies the token using `adminAuth` middleware.
-    *   If authorized, the request proceeds to the `updateSkill` controller.
-    *   The controller validates the data (if applicable), updates the skill in MongoDB via the `Skill` model.
-    *   The controller sends back the updated skill data as JSON.
-    *   The frontend `AdminSkillsManager` receives the response. On success, it might clear the editing state and calls the `onUpdate` prop, which triggers a data refresh in the parent `AdminPage`.
+---
 
-This detailed description covers the key technical aspects of both the frontend and backend based on the provided code snippets.
+**Data Flow Summary**
 
-```json
-{
-  "backend/src/app.ts": {
-    "imports": [
-      {"source": "express", "what": ["Request", "Response", "NextFunction", "default as express"]},
-      {"source": "cors", "what": ["default as cors"]},
-      {"source": "path", "what": ["* as path"]},
-      {"source": "dotenv", "what": ["config"]},
-      {"source": "./config/database", "what": ["connectDB"]},
-      {"source": "./routes/projectRoutes", "what": ["default as projectRoutes"]},
-      {"source": "./routes/skillRoutes", "what": ["default as skillRoutes"]},
-      {"source": "./routes/aboutRoutes", "what": ["default as aboutRoutes"]},
-      {"source": "./routes/authRoutes", "what": ["default as authRoutes"]},
-      {"source": "./routes/experienceRoutes", "what": ["default as experienceRoutes"]},
-      {"source": "./utils/errorHandler", "what": ["AppError"]}
-    ],
-    "defines": {
-      "variables": ["app", "port", "isOnline", "base_route", "server"],
-      "functions": ["gracefulShutdown"]
-    },
-    "calls": [
-      {"target": "config", "source": "dotenv"},
-      {"target": "express", "source": "express"},
-      {"target": "app.use", "source": "express"},
-      {"target": "express.json", "source": "express"},
-      {"target": "cors", "source": "cors"},
-      {"target": "app.all", "source": "express"},
-      {"target": "app.get", "source": "express"},
-      {"target": "AppError", "source": "./utils/errorHandler"},
-      {"target": "res.status().json", "source": "express"},
-      {"target": "connectDB", "source": "./config/database"},
-      {"target": "app.listen", "source": "express"},
-      {"target": "console.log", "source": "node_builtin"},
-      {"target": "console.error", "source": "node_builtin"},
-      {"target": "process.exit", "source": "node_builtin"},
-      {"target": "process.on", "source": "node_builtin"},
-      {"target": "server.close", "source": "node_builtin"},
-      {"target": "path.join", "source": "path"},
-      {"target": "express.static", "source": "express"},
-      {"target": "res.sendFile", "source": "express"}
-    ],
-    "uses": {
-      "interfaces": ["Request", "Response", "NextFunction"],
-      "classes": ["AppError"]
-    }
-  },
-  "backend/src/config/database.ts": {
-    "imports": [
-      {"source": "mongoose", "what": ["default as mongoose"]}
-    ],
-    "defines": {
-      "functions": ["connectDB"]
-    },
-    "calls": [
-      {"target": "mongoose.connect", "source": "mongoose"},
-      {"target": "console.log", "source": "node_builtin"},
-      {"target": "console.error", "source": "node_builtin"},
-      {"target": "process.exit", "source": "node_builtin"}
-    ],
-    "uses": {}
-  },
-  "backend/src/controllers/aboutController.ts": {
-    "imports": [
-      {"source": "express", "what": ["Request", "Response", "NextFunction"]},
-      {"source": "express-validator", "what": ["validationResult"]},
-      {"source": "../models/AboutMe", "what": ["default as AboutMe", "IAboutMe"]},
-      {"source": "../utils/errorHandler", "what": ["AppError", "catchAsync"]}
-    ],
-    "defines": {
-      "functions": ["getAboutMe", "updateAboutMe"]
-    },
-    "calls": [
-      {"target": "catchAsync", "source": "../utils/errorHandler"},
-      {"target": "AboutMe.findOne", "source": "../models/AboutMe"},
-      {"target": "AppError", "source": "../utils/errorHandler"},
-      {"target": "next", "source": "express"},
-      {"target": "res.status().json", "source": "express"},
-      {"target": "validationResult", "source": "express-validator"},
-      {"target": "errors.isEmpty", "source": "express-validator"},
-      {"target": "errors.array", "source": "express-validator"},
-      {"target": "AboutMe.findOneAndUpdate", "source": "../models/AboutMe"}
-    ],
-    "uses": {
-      "models": ["AboutMe"],
-      "interfaces": ["Request", "Response", "NextFunction", "IAboutMe"],
-      "classes": ["AppError"]
-    }
-  },
-  "backend/src/controllers/authController.ts": {
-    "imports": [
-      {"source": "express", "what": ["Request", "Response", "NextFunction"]},
-      {"source": "jsonwebtoken", "what": ["default as jwt"]},
-      {"source": "../utils/errorHandler", "what": ["AppError", "catchAsync"]}
-    ],
-    "defines": {
-      "functions": ["login"]
-    },
-    "calls": [
-      {"target": "catchAsync", "source": "../utils/errorHandler"},
-      {"target": "jwt.sign", "source": "jsonwebtoken"},
-      {"target": "res.status().json", "source": "express"},
-      {"target": "AppError", "source": "../utils/errorHandler"},
-      {"target": "next", "source": "express"}
-    ],
-    "uses": {
-      "interfaces": ["Request", "Response", "NextFunction"],
-      "classes": ["AppError"]
-    }
-  },
-  "backend/src/controllers/experienceController.ts": {
-    "imports": [
-      {"source": "express", "what": ["Request", "Response"]},
-      {"source": "../models/Experience", "what": ["default as Experience"]},
-      {"source": "../middleware/authMiddleware", "what": ["AuthRequest"]}
-    ],
-    "defines": {
-      "functions": ["getExperiences", "getExperience", "createExperience", "updateExperience", "deleteExperience"]
-    },
-    "calls": [
-      {"target": "Experience.find", "source": "../models/Experience"},
-      {"target": "Experience.sort", "source": "../models/Experience"},
-      {"target": "res.status().json", "source": "express"},
-      {"target": "console.error", "source": "node_builtin"},
-      {"target": "Experience.findById", "source": "../models/Experience"},
-      {"target": "Experience", "source": "../models/Experience"},
-      {"target": "experience.save", "source": "../models/Experience"},
-      {"target": "Experience.findByIdAndUpdate", "source": "../models/Experience"},
-      {"target": "Experience.findByIdAndDelete", "source": "../models/Experience"}
-    ],
-    "uses": {
-      "models": ["Experience"],
-      "interfaces": ["Request", "Response", "AuthRequest"]
-    }
-  },
-  "backend/src/controllers/projectController.ts": {
-    "imports": [
-      {"source": "express", "what": ["Request", "Response", "NextFunction"]},
-      {"source": "express-validator", "what": ["validationResult"]},
-      {"source": "../models/Project", "what": ["default as Project", "IProject"]},
-      {"source": "../utils/errorHandler", "what": ["AppError", "catchAsync"]}
-    ],
-    "defines": {
-      "functions": ["getAllProjects", "getProject", "createProject", "updateProject", "deleteProject"]
-    },
-    "calls": [
-      {"target": "catchAsync", "source": "../utils/errorHandler"},
-      {"target": "Project.find", "source": "../models/Project"},
-      {"target": "Project.sort", "source": "../models/Project"},
-      {"target": "res.status().json", "source": "express"},
-      {"target": "Project.findById", "source": "../models/Project"},
-      {"target": "AppError", "source": "../utils/errorHandler"},
-      {"target": "next", "source": "express"},
-      {"target": "validationResult", "source": "express-validator"},
-      {"target": "errors.isEmpty", "source": "express-validator"},
-      {"target": "errors.array", "source": "express-validator"},
-      {"target": "Project.create", "source": "../models/Project"},
-      {"target": "Project.findByIdAndUpdate", "source": "../models/Project"},
-      {"target": "Project.findByIdAndDelete", "source": "../models/Project"}
-    ],
-    "uses": {
-      "models": ["Project"],
-      "interfaces": ["Request", "Response", "NextFunction", "IProject"],
-      "classes": ["AppError"]
-    }
-  },
-  "backend/src/controllers/skillController.ts": {
-    "imports": [
-      {"source": "express", "what": ["Request", "Response", "NextFunction"]},
-      {"source": "express-validator", "what": ["validationResult"]},
-      {"source": "../models/Skill", "what": ["default as Skill", "ISkill"]},
-      {"source": "../utils/errorHandler", "what": ["AppError", "catchAsync"]}
-    ],
-    "defines": {
-      "functions": ["getAllSkills", "getSkill", "createSkill", "updateSkill", "deleteSkill"]
-    },
-    "calls": [
-      {"target": "catchAsync", "source": "../utils/errorHandler"},
-      {"target": "Skill.find", "source": "../models/Skill"},
-      {"target": "res.status().json", "source": "express"},
-      {"target": "Skill.findById", "source": "../models/Skill"},
-      {"target": "AppError", "source": "../utils/errorHandler"},
-      {"target": "next", "source": "express"},
-      {"target": "validationResult", "source": "express-validator"},
-      {"target": "errors.isEmpty", "source": "express-validator"},
-      {"target": "errors.array", "source": "express-validator"},
-      {"target": "Skill.create", "source": "../models/Skill"},
-      {"target": "Skill.findByIdAndUpdate", "source": "../models/Skill"},
-      {"target": "Skill.findByIdAndDelete", "source": "../models/Skill"},
-      {"target": "res.status().send", "source": "express"}
-    ],
-    "uses": {
-      "models": ["Skill"],
-      "interfaces": ["Request", "Response", "NextFunction", "ISkill"],
-      "classes": ["AppError"]
-    }
-  },
-  "backend/src/middleware/authMiddleware.ts": {
-    "imports": [
-      {"source": "express", "what": ["Request", "Response", "NextFunction"]},
-      {"source": "../utils/errorHandler", "what": ["AppError"]},
-      {"source": "jsonwebtoken", "what": ["default as jwt"]}
-    ],
-    "defines": {
-      "interfaces": ["AuthRequest"],
-      "functions": ["adminAuth"]
-    },
-    "calls": [
-      {"target": "req.headers.authorization.split", "source": "node_builtin"},
-      {"target": "AppError", "source": "../utils/errorHandler"},
-      {"target": "jwt.verify", "source": "jsonwebtoken"},
-      {"target": "next", "source": "express"}
-    ],
-    "uses": {
-      "interfaces": ["Request", "Response", "NextFunction"],
-      "classes": ["AppError"]
-    }
-  },
-  "backend/src/models/About.ts": {
-    "imports": [
-      {"source": "mongoose", "what": ["Schema", "model", "Document"]}
-    ],
-    "defines": {
-      "interfaces": ["IAbout"],
-      "variables": ["AboutSchema"],
-      "models": ["About"]
-    },
-    "calls": [
-      {"target": "new Schema", "source": "mongoose"},
-      {"target": "model", "source": "mongoose"}
-    ],
-    "uses": {}
-  },
-  "backend/src/models/AboutMe.ts": {
-    "imports": [
-      {"source": "mongoose", "what": ["Schema", "model", "Document"]}
-    ],
-    "defines": {
-      "interfaces": ["IAboutMe"],
-      "variables": ["AboutMeSchema"],
-      "models": ["AboutMe"]
-    },
-    "calls": [
-      {"target": "new Schema", "source": "mongoose"},
-      {"target": "model", "source": "mongoose"}
-    ],
-    "uses": {}
-  },
-  "backend/src/models/Experience.ts": {
-    "imports": [
-      {"source": "mongoose", "what": ["default as mongoose", "Document", "Schema"]}
-    ],
-    "defines": {
-      "interfaces": ["IExperience"],
-      "variables": ["experienceSchema"],
-      "models": ["Experience"]
-    },
-    "calls": [
-      {"target": "new Schema", "source": "mongoose"},
-      {"target": "mongoose.model", "source": "mongoose"}
-    ],
-    "uses": {}
-  },
-  "backend/src/models/Project.ts": {
-    "imports": [
-      {"source": "mongoose", "what": ["Schema", "model", "Document"]}
-    ],
-    "defines": {
-      "interfaces": ["IProject"],
-      "variables": ["ProjectSchema"],
-      "models": ["Project"]
-    },
-    "calls": [
-      {"target": "new Schema", "source": "mongoose"},
-      {"target": "ProjectSchema.pre", "source": "mongoose"},
-      {"target": "new Error", "source": "node_builtin"},
-      {"target": "next", "source": "mongoose"},
-      {"target": "model", "source": "mongoose"}
-    ],
-    "uses": {}
-  },
-  "backend/src/models/Skill.ts": {
-    "imports": [
-      {"source": "mongoose", "what": ["Schema", "model", "Document"]}
-    ],
-    "defines": {
-      "interfaces": ["ISkill"],
-      "variables": ["SkillSchema"],
-      "models": ["Skill"]
-    },
-    "calls": [
-      {"target": "new Schema", "source": "mongoose"},
-      {"target": "model", "source": "mongoose"}
-    ],
-    "uses": {}
-  },
-  "backend/src/routes/aboutRoutes.ts": {
-    "imports": [
-      {"source": "express", "what": ["Router"]},
-      {"source": "express-validator", "what": ["body"]},
-      {"source": "../controllers/aboutController", "what": ["getAboutMe", "updateAboutMe"]},
-      {"source": "../middleware/authMiddleware", "what": ["adminAuth"]}
-    ],
-    "defines": {
-      "variables": ["router", "aboutValidation"]
-    },
-    "calls": [
-      {"target": "Router", "source": "express"},
-      {"target": "body", "source": "express-validator"},
-      {"target": "trim", "source": "express-validator"},
-      {"target": "notEmpty", "source": "express-validator"},
-      {"target": "withMessage", "source": "express-validator"},
-      {"target": "isEmail", "source": "express-validator"},
-      {"target": "optional", "source": "express-validator"},
-      {"target": "isURL", "source": "express-validator"},
-      {"target": "router.route", "source": "express"},
-      {"target": "get", "source": "express"},
-      {"target": "put", "source": "express"}
-    ],
-    "uses": {
-      "functions": ["getAboutMe", "updateAboutMe", "adminAuth"]
-    }
-  },
-  "backend/src/routes/authRoutes.ts": {
-    "imports": [
-      {"source": "express", "what": ["default as express"]},
-      {"source": "../controllers/authController", "what": ["login"]}
-    ],
-    "defines": {
-      "variables": ["router"]
-    },
-    "calls": [
-      {"target": "express.Router", "source": "express"},
-      {"target": "router.post", "source": "express"}
-    ],
-    "uses": {
-      "functions": ["login"]
-    }
-  },
-  "backend/src/routes/experienceRoutes.ts": {
-    "imports": [
-      {"source": "express", "what": ["default as express"]},
-      {"source": "../controllers/experienceController", "what": ["getExperiences", "getExperience", "createExperience", "updateExperience", "deleteExperience"]},
-      {"source": "../middleware/authMiddleware", "what": ["adminAuth"]}
-    ],
-    "defines": {
-      "variables": ["router"]
-    },
-    "calls": [
-      {"target": "express.Router", "source": "express"},
-      {"target": "router.get", "source": "express"},
-      {"target": "router.post", "source": "express"},
-      {"target": "router.put", "source": "express"},
-      {"target": "router.delete", "source": "express"}
-    ],
-    "uses": {
-      "functions": ["getExperiences", "getExperience", "createExperience", "updateExperience", "deleteExperience", "adminAuth"]
-    }
-  },
-  "backend/src/routes/projectRoutes.ts": {
-    "imports": [
-      {"source": "express", "what": ["Router"]},
-      {"source": "express-validator", "what": ["body"]},
-      {"source": "../controllers/projectController", "what": ["getAllProjects", "getProject", "createProject", "updateProject", "deleteProject"]},
-      {"source": "../middleware/authMiddleware", "what": ["adminAuth"]}
-    ],
-    "defines": {
-      "variables": ["router", "projectValidation", "updateProjectValidation"]
-    },
-    "calls": [
-      {"target": "Router", "source": "express"},
-      {"target": "body", "source": "express-validator"},
-      {"target": "trim", "source": "express-validator"},
-      {"target": "notEmpty", "source": "express-validator"},
-      {"target": "withMessage", "source": "express-validator"},
-      {"target": "isArray", "source": "express-validator"},
-      {"target": "custom", "source": "express-validator"},
-      {"target": "new Error", "source": "node_builtin"},
-      {"target": "optional", "source": "express-validator"},
-      {"target": "router.route", "source": "express"},
-      {"target": "get", "source": "express"},
-      {"target": "post", "source": "express"},
-      {"target": "patch", "source": "express"},
-      {"target": "delete", "source": "express"}
-    ],
-    "uses": {
-      "functions": ["getAllProjects", "getProject", "createProject", "updateProject", "deleteProject", "adminAuth"]
-    }
-  },
-  "backend/src/routes/skillRoutes.ts": {
-    "imports": [
-      {"source": "express", "what": ["Router"]},
-      {"source": "express-validator", "what": ["body"]},
-      {"source": "../controllers/skillController", "what": ["getAllSkills", "getSkill", "createSkill", "updateSkill", "deleteSkill"]},
-      {"source": "../middleware/authMiddleware", "what": ["adminAuth"]}
-    ],
-    "defines": {
-      "variables": ["router", "skillValidation"]
-    },
-    "calls": [
-      {"target": "Router", "source": "express"},
-      {"target": "body", "source": "express-validator"},
-      {"target": "trim", "source": "express-validator"},
-      {"target": "notEmpty", "source": "express-validator"},
-      {"target": "withMessage", "source": "express-validator"},
-      {"target": "isIn", "source": "express-validator"},
-      {"target": "isInt", "source": "express-validator"},
-      {"target": "router.route", "source": "express"},
-      {"target": "get", "source": "express"},
-      {"target": "post", "source": "express"},
-      {"target": "patch", "source": "express"},
-      {"target": "delete", "source": "express"}
-    ],
-    "uses": {
-      "functions": ["getAllSkills", "getSkill", "createSkill", "updateSkill", "deleteSkill", "adminAuth"]
-    }
-  },
-  "backend/src/scripts/initDb.ts": {
-    "imports": [
-      {"source": "mongoose", "what": ["default as mongoose"]},
-      {"source": "../models/AboutMe", "what": ["default as AboutMe"]},
-      {"source": "dotenv", "what": ["default as dotenv"]}
-    ],
-    "defines": {
-      "functions": ["initializeDb"]
-    },
-    "calls": [
-      {"target": "dotenv.config", "source": "dotenv"},
-      {"target": "mongoose.connect", "source": "mongoose"},
-      {"target": "console.log", "source": "node_builtin"},
-      {"target": "AboutMe.findOne", "source": "../models/AboutMe"},
-      {"target": "AboutMe.create", "source": "../models/AboutMe"},
-      {"target": "console.error", "source": "node_builtin"},
-      {"target": "mongoose.disconnect", "source": "mongoose"},
-      {"target": "initializeDb", "source": "internal"}
-    ],
-    "uses": {
-      "models": ["AboutMe"]
-    }
-  },
-  "backend/src/scripts/initializeDb.ts": {
-    "imports": [
-      {"source": "../config/database", "what": ["connectDB"]},
-      {"source": "../models/Project", "what": ["default as Project"]},
-      {"source": "../models/AboutMe", "what": ["default as AboutMe"]},
-      {"source": "../models/Experience", "what": ["default as Experience"]},
-      {"source": "dotenv", "what": ["config"]}
-    ],
-    "defines": {
-      "functions": ["initializeDb"]
-    },
-    "calls": [
-      {"target": "config", "source": "dotenv"},
-      {"target": "connectDB", "source": "../config/database"},
-      {"target": "console.log", "source": "node_builtin"},
-      {"target": "Project.countDocuments", "source": "../models/Project"},
-      {"target": "Project.create", "source": "../models/Project"},
-      {"target": "Experience.countDocuments", "source": "../models/Experience"},
-      {"target": "Experience.insertMany", "source": "../models/Experience"},
-      {"target": "AboutMe.countDocuments", "source": "../models/AboutMe"},
-      {"target": "AboutMe.create", "source": "../models/AboutMe"},
-      {"target": "process.exit", "source": "node_builtin"},
-      {"target": "console.error", "source": "node_builtin"},
-      {"target": "initializeDb", "source": "internal"}
-    ],
-    "uses": {
-      "models": ["Project", "AboutMe", "Experience"]
-    }
-  },
-  "backend/src/scripts/resetAboutCollection.ts": {
-    "imports": [
-      {"source": "../config/database", "what": ["connectDB"]},
-      {"source": "../models/AboutMe", "what": ["default as AboutMe"]},
-      {"source": "dotenv", "what": ["config"]}
-    ],
-    "defines": {
-      "functions": ["resetAboutCollection"]
-    },
-    "calls": [
-      {"target": "config", "source": "dotenv"},
-      {"target": "connectDB", "source": "../config/database"},
-      {"target": "console.log", "source": "node_builtin"},
-      {"target": "AboutMe.collection.drop", "source": "../models/AboutMe"},
-      {"target": "AboutMe.create", "source": "../models/AboutMe"},
-      {"target": "console.error", "source": "node_builtin"},
-      {"target": "process.exit", "source": "node_builtin"},
-      {"target": "resetAboutCollection", "source": "internal"}
-    ],
-    "uses": {
-      "models": ["AboutMe"]
-    }
-  },
-  "backend/src/scripts/setupEnv.ts": {
-    "imports": [
-      {"source": "fs", "what": ["default as fs"]},
-      {"source": "path", "what": ["default as path"]},
-      {"source": "dotenv", "what": ["default as dotenv"]}
-    ],
-    "defines": {
-      "variables": ["envPath", "envContent"]
-    },
-    "calls": [
-      {"target": "dotenv.config", "source": "dotenv"},
-      {"target": "path.join", "source": "path"},
-      {"target": "fs.writeFileSync", "source": "fs"},
-      {"target": "console.log", "source": "node_builtin"},
-      {"target": "console.error", "source": "node_builtin"}
-    ],
-    "uses": {}
-  },
-  "backend/src/utils/errorHandler.ts": {
-    "imports": [],
-    "defines": {
-      "classes": ["AppError"],
-      "functions": ["catchAsync"]
-    },
-    "calls": [
-      {"target": "super", "source": "node_builtin"},
-      {"target": "Error.captureStackTrace", "source": "node_builtin"},
-      {"target": "fn().catch", "source": "internal"}
-    ],
-    "uses": {
-      "classes": ["Error"]
-    }
-  },
-  "src/app/about/page.tsx": {
-    "imports": [
-      {"source": "react", "what": ["useState", "useEffect", "useRef"]},
-      {"source": "@/lib/auth", "what": ["isAdmin", "getAuthToken"]},
-      {"source": "@/services/api", "what": ["api"]},
-      {"source": "@/types", "what": ["AboutMe"]},
-      {"source": "@/utils/imageUtils", "what": ["fileToBase64", "validateImage", "resizeImage"]},
-      {"source": "react-markdown", "what": ["default as ReactMarkdown"]}
-    ],
-    "defines": {
-      "components": ["AboutPage"]
-    },
-    "calls": [
-      {"target": "useState", "source": "react"},
-      {"target": "useEffect", "source": "react"},
-      {"target": "useRef", "source": "react"},
-      {"target": "isAdmin", "source": "@/lib/auth"},
-      {"target": "fetchAbout", "source": "internal"},
-      {"target": "setLoading", "source": "react"},
-      {"target": "api.getAbout", "source": "@/services/api"},
-      {"target": "setAbout", "source": "react"},
-      {"target": "setImagePreview", "source": "react"},
-      {"target": "console.error", "source": "node_builtin"},
-      {"target": "setEditedAbout", "source": "react"},
-      {"target": "setIsEditing", "source": "react"},
-      {"target": "setSelectedImage", "source": "react"},
-      {"target": "fileInputRef.current.value", "source": "react"},
-      {"target": "validateImage", "source": "@/utils/imageUtils"},
-      {"target": "alert", "source": "browser"},
-      {"target": "fileToBase64", "source": "@/utils/imageUtils"},
-      {"target": "resizeImage", "source": "@/utils/imageUtils"},
-      {"target": "handleSubmit", "source": "internal"},
-      {"target": "e.preventDefault", "source": "browser"},
-      {"target": "setIsSubmitting", "source": "react"},
-      {"target": "getAuthToken", "source": "@/lib/auth"},
-      {"target": "api.updateAbout", "source": "@/services/api"},
-      {"target": "setShowPreview", "source": "react"},
-      {"target": "ReactMarkdown", "source": "react-markdown"}
-    ],
-    "uses": {
-      "types": ["AboutMe"],
-      "interfaces": ["React.ChangeEvent", "React.FormEvent", "HTMLInputElement"],
-      "components": ["ReactMarkdown"]
-    }
-  },
-  "src/app/admin/login/page.tsx": {
-    "imports": [
-      {"source": "react", "what": ["useState"]},
-      {"source": "next/navigation", "what": ["useRouter"]},
-      {"source": "@/lib/auth", "what": ["login"]}
-    ],
-    "defines": {
-      "components": ["AdminLogin"]
-    },
-    "calls": [
-      {"target": "useState", "source": "react"},
-      {"target": "useRouter", "source": "next/navigation"},
-      {"target": "handleSubmit", "source": "internal"},
-      {"target": "e.preventDefault", "source": "browser"},
-      {"target": "login", "source": "@/lib/auth"},
-      {"target": "router.push", "source": "next/navigation"},
-      {"target": "router.refresh", "source": "next/navigation"},
-      {"target": "setError", "source": "react"},
-      {"target": "setUsername", "source": "react"},
-      {"target": "setPassword", "source": "react"}
-    ],
-    "uses": {
-      "interfaces": ["React.FormEvent"]
-    }
-  },
-  "src/app/admin/page.tsx": {
-    "imports": [
-      {"source": "react", "what": ["useState", "useEffect"]},
-      {"source": "next/navigation", "what": ["useRouter", "useSearchParams"]},
-      {"source": "@/lib/auth", "what": ["isAdmin"]},
-      {"source": "@/services/api", "what": ["api"]},
-      {"source": "@/types", "what": ["Project", "Skill", "AboutMe", "Experience"]},
-      {"source": "@/components/AdminSkillsManager", "what": ["default as AdminSkillsManager"]},
-      {"source": "@/components/AdminProjectsManager", "what": ["default as AdminProjectsManager"]},
-      {"source": "@/components/AdminAboutManager", "what": ["default as AdminAboutManager"]},
-      {"source": "@/components/AdminExperienceManager", "what": ["default as AdminExperienceManager"]}
-    ],
-    "defines": {
-      "components": ["AdminPage"]
-    },
-    "calls": [
-      {"target": "useRouter", "source": "next/navigation"},
-      {"target": "useSearchParams", "source": "next/navigation"},
-      {"target": "useState", "source": "react"},
-      {"target": "useEffect", "source": "react"},
-      {"target": "isAdmin", "source": "@/lib/auth"},
-      {"target": "router.push", "source": "next/navigation"},
-      {"target": "searchParams.get", "source": "next/navigation"},
-      {"target": "setActiveTab", "source": "react"},
-      {"target": "fetchData", "source": "internal"},
-      {"target": "Promise.all", "source": "node_builtin"},
-      {"target": "api.getSkills", "source": "@/services/api"},
-      {"target": "api.getProjects", "source": "@/services/api"},
-      {"target": "api.getAbout", "source": "@/services/api"},
-      {"target": "api.getExperiences", "source": "@/services/api"},
-      {"target": "console.log", "source": "node_builtin"},
-      {"target": "setSkills", "source": "react"},
-      {"target": "setProjects", "source": "react"},
-      {"target": "setAbout", "source": "react"},
-      {"target": "setExperiences", "source": "react"},
-      {"target": "console.error", "source": "node_builtin"},
-      {"target": "setLoading", "source": "react"},
-      {"target": "handleRefreshData", "source": "internal"}
-    ],
-    "uses": {
-      "types": ["Project", "Skill", "AboutMe", "Experience"],
-      "components": ["AdminSkillsManager", "AdminProjectsManager", "AdminAboutManager", "AdminExperienceManager"]
-    }
-  },
-  "src/app/experiences/page.tsx": {
-    "imports": [
-      {"source": "react", "what": ["useState", "useEffect", "useCallback"]},
-      {"source": "@/components/ExperienceSection", "what": ["default as ExperienceSection"]},
-      {"source": "@/services/api", "what": ["api"]},
-      {"source": "@/types", "what": ["Experience"]}
-    ],
-    "defines": {
-      "components": ["ExperiencesPage"]
-    },
-    "calls": [
-      {"target": "useState", "source": "react"},
-      {"target": "useEffect", "source": "react"},
-      {"target": "fetchExperiences", "source": "internal"},
-      {"target": "api.getExperiences", "source": "@/services/api"},
-      {"target": "setExperiences", "source": "react"},
-      {"target": "console.error", "source": "node_builtin"},
-      {"target": "setLoading", "source": "react"},
-      {"target": "useCallback", "source": "react"},
-      {"target": "console.log", "source": "node_builtin"}
-    ],
-    "uses": {
-      "types": ["Experience"],
-      "components": ["ExperienceSection"]
-    }
-  },
-  "src/app/layout.tsx": {
-    "imports": [
-      {"source": "next", "what": ["Metadata"]},
-      {"source": "next/font/google", "what": ["Geist", "Geist_Mono"]},
-      {"source": "@/components/Navigation", "what": ["default as Navigation"]},
-      {"source": "./globals.css", "what": []}
-    ],
-    "defines": {
-      "variables": ["geistSans", "geistMono", "metadata"],
-      "components": ["RootLayout"]
-    },
-    "calls": [
-      {"target": "Geist", "source": "next/font/google"},
-      {"target": "Geist_Mono", "source": "next/font/google"}
-    ],
-    "uses": {
-      "types": ["Metadata", "React.ReactNode"],
-      "components": ["Navigation"]
-    }
-  },
-  "src/app/page.tsx": {
-    "imports": [
-      {"source": "@/components/AboutSection", "what": ["default as AboutSection"]},
-      {"source": "@/components/ProjectCard", "what": ["default as ProjectCard"]},
-      {"source": "@/components/SkillsGrid", "what": ["default as SkillsGrid"]},
-      {"source": "@/components/ExperienceSection", "what": ["default as ExperienceSection"]},
-      {"source": "@/services/api", "what": ["api"]}
-    ],
-    "defines": {
-      "components": ["Home"]
-    },
-    "calls": [
-      {"target": "Promise.all", "source": "node_builtin"},
-      {"target": "api.getProjects", "source": "@/services/api"},
-      {"target": "api.getSkills", "source": "@/services/api"},
-      {"target": "api.getAbout", "source": "@/services/api"},
-      {"target": "api.getExperiences", "source": "@/services/api"},
-      {"target": "projects.map", "source": "node_builtin"}
-    ],
-    "uses": {
-      "components": ["AboutSection", "ProjectCard", "SkillsGrid", "ExperienceSection"]
-    }
-  },
-  "src/app/projects/page.tsx": {
-    "imports": [
-      {"source": "react", "what": ["useState", "useEffect", "useRef"]},
-      {"source": "@/lib/auth", "what": ["isAdmin", "getAuthToken"]},
-      {"source": "@/services/api", "what": ["api"]},
-      {"source": "@/types", "what": ["Project"]},
-      {"source": "next/image", "what": ["default as Image"]},
-      {"source": "@/utils/imageUtils", "what": ["fileToBase64", "validateImage", "compressImageToMaxSize"]}
-    ],
-    "defines": {
-      "components": ["ProjectsPage"]
-    },
-    "calls": [
-      {"target": "useState", "source": "react"},
-      {"target": "useEffect", "source": "react"},
-      {"target": "useRef", "source": "react"},
-      {"target": "isAdmin", "source": "@/lib/auth"},
-      {"target": "setIsAdminUser", "source": "react"},
-      {"target": "fetchProjects", "source": "internal"},
-      {"target": "setLoading", "source": "react"},
-      {"target": "api.getProjects", "source": "@/services/api"},
-      {"target": "setProjects", "source": "react"},
-      {"target": "console.error", "source": "node_builtin"},
-      {"target": "resetForm", "source": "internal"},
-      {"target": "setFormData", "source": "react"},
-      {"target": "setIsCreating", "source": "react"},
-      {"target": "setEditingId", "source": "react"},
-      {"target": "setSelectedImage", "source": "react"},
-      {"target": "setImagePreview", "source": "react"},
-      {"target": "setTechInput", "source": "react"},
-      {"target": "fileInputRef.current.value", "source": "react"},
-      {"target": "handleCreateNew", "source": "internal"},
-      {"target": "handleEdit", "source": "internal"},
-      {"target": "handleImageSelect", "source": "internal"},
-      {"target": "validateImage", "source": "@/utils/imageUtils"},
-      {"target": "alert", "source": "browser"},
-      {"target": "fileToBase64", "source": "@/utils/imageUtils"},
-      {"target": "compressImageToMaxSize", "source": "@/utils/imageUtils"},
-      {"target": "handleTechKeyPress", "source": "internal"},
-      {"target": "e.preventDefault", "source": "browser"},
-      {"target": "techInput.trim", "source": "node_builtin"},
-      {"target": "removeTech", "source": "internal"},
-      {"target": "handleSubmit", "source": "internal"},
-      {"target": "setIsSubmitting", "source": "react"},
-      {"target": "getAuthToken", "source": "@/lib/auth"},
-      {"target": "api.createProject", "source": "@/services/api"},
-      {"target": "Date.toISOString", "source": "node_builtin"},
-      {"target": "projects.find", "source": "node_builtin"},
-      {"target": "api.updateProject", "source": "@/services/api"},
-      {"target": "projects.map", "source": "node_builtin"},
-      {"target": "handleDelete", "source": "internal"},
-      {"target": "confirm", "source": "browser"},
-      {"target": "api.deleteProject", "source": "@/services/api"},
-      {"target": "projects.filter", "source": "node_builtin"}
-    ],
-    "uses": {
-      "types": ["Project"],
-      "interfaces": ["React.ChangeEvent", "React.KeyboardEvent", "React.FormEvent", "HTMLInputElement"],
-      "components": ["Image"]
-    }
-  },
-  "src/app/skills/page.tsx": {
-    "imports": [
-      {"source": "react", "what": ["useState", "useEffect"]},
-      {"source": "@/lib/auth", "what": ["isAdmin", "getAuthToken"]},
-      {"source": "@/services/api", "what": ["api"]},
-      {"source": "@/types", "what": ["Skill"]}
-    ],
-    "defines": {
-      "variables": ["CATEGORY_LABELS"],
-      "components": ["SkillsPage"]
-    },
-    "calls": [
-      {"target": "useState", "source": "react"},
-      {"target": "useEffect", "source": "react"},
-      {"target": "isAdmin", "source": "@/lib/auth"},
-      {"target": "setIsAdminUser", "source": "react"},
-      {"target": "fetchSkills", "source": "internal"},
-      {"target": "setLoading", "source": "react"},
-      {"target": "api.getSkills", "source": "@/services/api"},
-      {"target": "setSkills", "source": "react"},
-      {"target": "setError", "source": "react"},
-      {"target": "console.error", "source": "node_builtin"},
-      {"target": "resetForm", "source": "internal"},
-      {"target": "setFormData", "source": "react"},
-      {"target": "setIsCreating", "source": "react"},
-      {"target": "setEditingId", "source": "react"},
-      {"target": "handleCreateNew", "source": "internal"},
-      {"target": "handleEdit", "source": "internal"},
-      {"target": "handleSubmit", "source": "internal"},
-      {"target": "e.preventDefault", "source": "browser"},
-      {"target": "setIsSubmitting", "source": "react"},
-      {"target": "getAuthToken", "source": "@/lib/auth"},
-      {"target": "alert", "source": "browser"},
-      {"target": "api.createSkill", "source": "@/services/api"},
-      {"target": "api.updateSkill", "source": "@/services/api"},
-      {"target": "handleDelete", "source": "internal"},
-      {"target": "window.confirm", "source": "browser"},
-      {"target": "api.deleteSkill", "source": "@/services/api"},
-      {"target": "handleCancel", "source": "internal"},
-      {"target": "handleInputChange", "source": "internal"},
-      {"target": "parseInt", "source": "node_builtin"},
-      {"target": "skills.reduce", "source": "node_builtin"},
-      {"target": "Object.entries", "source": "node_builtin"},
-      {"target": "map", "source": "node_builtin"}, // Used implicitly on Object.entries result and categorySkills
-      {"target": "Object.keys", "source": "node_builtin"}
-    ],
-    "uses": {
-      "types": ["Skill"],
-      "interfaces": ["React.ChangeEvent", "React.FormEvent", "HTMLInputElement", "HTMLSelectElement"]
-    }
-  },
-  "src/components/AboutSection.tsx": {
-    "imports": [
-      {"source": "@/types", "what": ["AboutMe"]},
-      {"source": "next/link", "what": ["default as Link"]}
-    ],
-    "defines": {
-      "components": ["AboutSection"]
-    },
-    "calls": [],
-    "uses": {
-      "types": ["AboutMe"],
-      "components": ["Link"]
-    }
-  },
-  "src/components/AdminAboutManager.tsx": {
-    "imports": [
-      {"source": "react", "what": ["useState", "useRef"]},
-      {"source": "@/lib/auth", "what": ["getAuthToken"]},
-      {"source": "@/types", "what": ["AboutMe"]},
-      {"source": "@/services/api", "what": ["api"]},
-      {"source": "@/utils/imageUtils", "what": ["fileToBase64", "validateImage", "resizeImage"]}
-    ],
-    "defines": {
-      "components": ["AdminAboutManager"]
-    },
-    "calls": [
-      {"target": "useState", "source": "react"},
-      {"target": "useRef", "source": "react"},
-      {"target": "handleImageSelect", "source": "internal"},
-      {"target": "validateImage", "source": "@/utils/imageUtils"},
-      {"target": "alert", "source": "browser"},
-      {"target": "setSelectedImage", "source": "react"},
-      {"target": "fileToBase64", "source": "@/utils/imageUtils"},
-      {"target": "resizeImage", "source": "@/utils/imageUtils"},
-      {"target": "setImagePreview", "source": "react"},
-      {"target": "handleSubmit", "source": "internal"},
-      {"target": "e.preventDefault", "source": "browser"},
-      {"target": "setIsSubmitting", "source": "react"},
-      {"target": "api.updateAbout", "source": "@/services/api"},
-      {"target": "getAuthToken", "source": "@/lib/auth"},
-      {"target": "onUpdate", "source": "props"},
-      {"target": "console.error", "source": "node_builtin"},
-      {"target": "setEditedAbout", "source": "react"}
-    ],
-    "uses": {
-      "types": ["AboutMe"],
-      "interfaces": ["AdminAboutManagerProps", "React.ChangeEvent", "React.FormEvent", "HTMLInputElement"]
-    }
-  },
-  "src/components/AdminExperienceManager.tsx": {
-    "imports": [
-      {"source": "react", "what": ["useState"]},
-      {"source": "@/lib/auth", "what": ["getAuthToken"]},
-      {"source": "@/types", "what": ["Experience"]},
-      {"source": "@/services/api", "what": ["api"]}
-    ],
-    "defines": {
-      "components": ["AdminExperienceManager"]
-    },
-    "calls": [
-      {"target": "useState", "source": "react"},
-      {"target": "console.log", "source": "node_builtin"},
-      {"target": "resetForm", "source": "internal"},
-      {"target": "setFormData", "source": "react"},
-      {"target": "setIsCreating", "source": "react"},
-      {"target": "setEditingId", "source": "react"},
-      {"target": "handleCreateNew", "source": "internal"},
-      {"target": "handleEdit", "source": "internal"},
-      {"target": "handleSubmit", "source": "internal"},
-      {"target": "e.preventDefault", "source": "browser"},
-      {"target": "setIsSubmitting", "source": "react"},
-      {"target": "getAuthToken", "source": "@/lib/auth"},
-      {"target": "alert", "source": "browser"},
-      {"target": "api.createExperience", "source": "@/services/api"},
-      {"target": "api.updateExperience", "source": "@/services/api"},
-      {"target": "onUpdate", "source": "props"},
-      {"target": "console.error", "source": "node_builtin"},
-      {"target": "handleDelete", "source": "internal"},
-      {"target": "confirm", "source": "browser"},
-      {"target": "api.deleteExperience", "source": "@/services/api"},
-      {"target": "experiences.sort", "source": "node_builtin"},
-      {"target": "experiences.map", "source": "node_builtin"},
-      {"target": "parseInt", "source": "node_builtin"}
-    ],
-    "uses": {
-      "types": ["Experience"],
-      "interfaces": ["AdminExperienceManagerProps", "React.FormEvent"]
-    }
-  },
-  "src/components/AdminHeader.tsx": {
-    "imports": [
-      {"source": "next/navigation", "what": ["useRouter"]},
-      {"source": "@/lib/auth", "what": ["isAdmin", "logout"]}
-    ],
-    "defines": {
-      "components": ["AdminHeader"]
-    },
-    "calls": [
-      {"target": "useRouter", "source": "next/navigation"},
-      {"target": "isAdmin", "source": "@/lib/auth"},
-      {"target": "handleLogout", "source": "internal"},
-      {"target": "logout", "source": "@/lib/auth"},
-      {"target": "router.refresh", "source": "next/navigation"}
-    ],
-    "uses": {}
-  },
-  "src/components/AdminProjectsManager.tsx": {
-    "imports": [
-      {"source": "react", "what": ["useState", "useRef"]},
-      {"source": "@/lib/auth", "what": ["getAuthToken"]},
-      {"source": "@/types", "what": ["Project"]},
-      {"source": "@/services/api", "what": ["api"]},
-      {"source": "@/utils/imageUtils", "what": ["fileToBase64", "validateImage", "resizeImage"]}
-    ],
-    "defines": {
-      "components": ["AdminProjectsManager"]
-    },
-    "calls": [
-      {"target": "useState", "source": "react"},
-      {"target": "useRef", "source": "react"},
-      {"target": "handleImageSelect", "source": "internal"},
-      {"target": "validateImage", "source": "@/utils/imageUtils"},
-      {"target": "alert", "source": "browser"},
-      {"target": "setSelectedImage", "source": "react"},
-      {"target": "fileToBase64", "source": "@/utils/imageUtils"},
-      {"target": "resizeImage", "source": "@/utils/imageUtils"},
-      {"target": "setImagePreview", "source": "react"},
-      {"target": "handleTechKeyPress", "source": "internal"},
-      {"target": "e.preventDefault", "source": "browser"},
-      {"target": "techInput.trim", "source": "node_builtin"},
-      {"target": "setNewProject", "source": "react"},
-      {"target": "setEditingProject", "source": "react"},
-      {"target": "setTechInput", "source": "react"},
-      {"target": "removeTech", "source": "internal"},
-      {"target": "handleEdit", "source": "internal"},
-      {"target": "handleDelete", "source": "internal"},
-      {"target": "confirm", "source": "browser"},
-      {"target": "setIsSubmitting", "source": "react"},
-      {"target": "api.deleteProject", "source": "@/services/api"},
-      {"target": "getAuthToken", "source": "@/lib/auth"},
-      {"target": "onUpdate", "source": "props"},
-      {"target": "console.error", "source": "node_builtin"},
-      {"target": "handleSubmitEdit", "source": "internal"},
-      {"target": "api.updateProject", "source": "@/services/api"},
-      {"target": "handleSubmitNew", "source": "internal"},
-      {"target": "api.createProject", "source": "@/services/api"},
-      {"target": "Date.toISOString", "source": "node_builtin"},
-      {"target": "fileInputRef.current.value", "source": "react"},
-      {"target": "projects.map", "source": "node_builtin"}
-    ],
-    "uses": {
-      "types": ["Project"],
-      "interfaces": ["AdminProjectsManagerProps", "React.ChangeEvent", "React.KeyboardEvent", "React.FormEvent", "HTMLInputElement"]
-    }
-  },
-  "src/components/AdminSkillsManager.tsx": {
-    "imports": [
-      {"source": "react", "what": ["useState"]},
-      {"source": "@/lib/auth", "what": ["getAuthToken"]},
-      {"source": "@/types/skill", "what": ["Skill"]}
-    ],
-    "defines": {
-      "components": ["AdminSkillsManager"]
-    },
-    "calls": [
-      {"target": "useState", "source": "react"},
-      {"target": "handleEdit", "source": "internal"},
-      {"target": "setEditingSkill", "source": "react"},
-      {"target": "handleDelete", "source": "internal"},
-      {"target": "confirm", "source": "browser"},
-      {"target": "setIsSubmitting", "source": "react"},
-      {"target": "fetch", "source": "browser"}, // Direct fetch usage
-      {"target": "getAuthToken", "source": "@/lib/auth"},
-      {"target": "response.ok", "source": "browser"},
-      {"target": "new Error", "source": "node_builtin"},
-      {"target": "onUpdate", "source": "props"},
-      {"target": "console.error", "source": "node_builtin"},
-      {"target": "alert", "source": "browser"},
-      {"target": "handleSubmitEdit", "source": "internal"},
-      {"target": "e.preventDefault", "source": "browser"},
-      {"target": "JSON.stringify", "source": "node_builtin"},
-      {"target": "handleSubmitNew", "source": "internal"},
-      {"target": "response.json", "source": "browser"},
-      {"target": "console.log", "source": "node_builtin"},
-      {"target": "setNewSkill", "source": "react"},
-      {"target": "skills.map", "source": "node_builtin"},
-      {"target": "parseInt", "source": "node_builtin"}
-    ],
-    "uses": {
-      "types": ["Skill"], // From src/types/skill.ts
-      "interfaces": ["AdminSkillsManagerProps", "React.FormEvent"]
-    }
-  },
-  "src/components/ExperienceSection.tsx": {
-    "imports": [
-      {"source": "react", "what": ["useEffect", "useState"]},
-      {"source": "@/types", "what": ["Experience"]},
-      {"source": "@/services/api", "what": ["api"]},
-      {"source": "@/lib/auth", "what": ["getAuthToken"]},
-      {"source": "react-markdown", "what": ["default as ReactMarkdown"]}
-    ],
-    "defines": {
-      "components": ["ExperienceSection"]
-    },
-    "calls": [
-      {"target": "useState", "source": "react"},
-      {"target": "useEffect", "source": "react"},
-      {"target": "getAuthToken", "source": "@/lib/auth"},
-      {"target": "setIsAdmin", "source": "react"},
-      {"target": "setLoading", "source": "react"},
-      {"target": "fetchExperiences", "source": "internal"},
-      {"target": "api.getExperiences", "source": "@/services/api"},
-      {"target": "setExperiences", "source": "react"},
-      {"target": "console.error", "source": "node_builtin"},
-      {"target": "resetForm", "source": "internal"},
-      {"target": "setFormData", "source": "react"},
-      {"target": "setIsCreating", "source": "react"},
-      {"target": "setEditingId", "source": "react"},
-      {"target": "handleCreateNew", "source": "internal"},
-      {"target": "handleEdit", "source": "internal"},
-      {"target": "handleSubmit", "source": "internal"},
-      {"target": "e.preventDefault", "source": "browser"},
-      {"target": "setIsSubmitting", "source": "react"},
-      {"target": "alert", "source": "browser"},
-      {"target": "api.createExperience", "source": "@/services/api"},
-      {"target": "console.log", "source": "node_builtin"},
-      {"target": "api.updateExperience", "source": "@/services/api"},
-      {"target": "setTimeout", "source": "node_builtin"},
-      {"target": "notifyParentOfChanges", "source": "internal"},
-      {"target": "handleDelete", "source": "internal"},
-      {"target": "confirm", "source": "browser"},
-      {"target": "api.deleteExperience", "source": "@/services/api"},
-      {"target": "experiences.filter", "source": "node_builtin"}, // Used in handleDelete and map
-      {"target": "experiences.sort", "source": "node_builtin"},
-      {"target": "experiences.map", "source": "node_builtin"},
-      {"target": "setShowPreview", "source": "react"},
-      {"target": "ReactMarkdown", "source": "react-markdown"},
-      {"target": "parseInt", "source": "node_builtin"}
-    ],
-    "uses": {
-      "types": ["Experience"],
-      "interfaces": ["ExperienceSectionProps", "React.FormEvent"],
-      "components": ["ReactMarkdown"]
-    }
-  },
-  "src/components/Navigation.tsx": {
-    "imports": [
-      {"source": "react", "what": ["useState", "useEffect"]},
-      {"source": "next/link", "what": ["default as Link"]},
-      {"source": "next/navigation", "what": ["usePathname", "useSearchParams", "useRouter"]},
-      {"source": "@/lib/auth", "what": ["isAdmin", "logout"]}
-    ],
-    "defines": {
-      "components": ["Navigation"],
-      "variables": ["navItems"]
-    },
-    "calls": [
-      {"target": "usePathname", "source": "next/navigation"},
-      {"target": "useSearchParams", "source": "next/navigation"},
-      {"target": "useRouter", "source": "next/navigation"},
-      {"target": "useState", "source": "react"},
-      {"target": "useEffect", "source": "react"},
-      {"target": "checkAdminStatus", "source": "internal"},
-      {"target": "isAdmin", "source": "@/lib/auth"},
-      {"target": "setIsAdminUser", "source": "react"},
-      {"target": "window.addEventListener", "source": "browser"},
-      {"target": "window.removeEventListener", "source": "browser"},
-      {"target": "handleLogout", "source": "internal"},
-      {"target": "logout", "source": "@/lib/auth"},
-      {"target": "router.refresh", "source": "next/navigation"},
-      {"target": "navItems.map", "source": "node_builtin"}
-    ],
-    "uses": {
-      "components": ["Link"]
-    }
-  },
-  "src/components/ProjectCard.tsx": {
-    "imports": [
-      {"source": "@/types", "what": ["Project"]},
-      {"source": "next/image", "what": ["default as Image"]}
-    ],
-    "defines": {
-      "components": ["ProjectCard"]
-    },
-    "calls": [
-      {"target": "project.technologies.map", "source": "node_builtin"}
-    ],
-    "uses": {
-      "types": ["Project"],
-      "interfaces": ["ProjectCardProps"],
-      "components": ["Image"]
-    }
-  },
-  "src/components/SkillsGrid.tsx": {
-    "imports": [
-      {"source": "@/lib/auth", "what": ["isAdmin"]},
-      {"source": "@/types", "what": ["Skill"]},
-      {"source": "./AdminSkillsManager", "what": ["default as AdminSkillsManager"]}
-    ],
-    "defines": {
-      "variables": ["CATEGORY_LABELS", "categories"],
-      "components": ["SkillsGrid"]
-    },
-    "calls": [
-      {"target": "isAdmin", "source": "@/lib/auth"},
-      {"target": "categories.map", "source": "node_builtin"},
-      {"target": "skills.filter", "source": "node_builtin"},
-      {"target": "categorySkills.map", "source": "node_builtin"}
-    ],
-    "uses": {
-      "types": ["Skill"],
-      "interfaces": ["SkillsGridProps"],
-      "components": ["AdminSkillsManager"]
-    }
-  },
-  "src/data/fallback.ts": {
-    "imports": [
-      {"source": "../types", "what": ["AboutMe", "Project", "Skill", "Experience"]}
-    ],
-    "defines": {
-      "variables": ["fallbackProjects", "fallbackSkills", "fallbackExperiences", "fallbackAboutMe"]
-    },
-    "calls": [],
-    "uses": {
-      "types": ["Project", "Skill", "Experience", "AboutMe"]
-    }
-  },
-  "src/lib/auth.ts": {
-    "imports": [],
-    "defines": {
-      "functions": ["login", "logout", "getAuthToken", "isAdmin"]
-    },
-    "calls": [
-      {"target": "fetch", "source": "browser"},
-      {"target": "JSON.stringify", "source": "node_builtin"},
-      {"target": "response.ok", "source": "browser"},
-      {"target": "new Error", "source": "node_builtin"},
-      {"target": "response.json", "source": "browser"},
-      {"target": "localStorage.setItem", "source": "browser"},
-      {"target": "window.dispatchEvent", "source": "browser"},
-      {"target": "new Event", "source": "browser"},
-      {"target": "localStorage.removeItem", "source": "browser"},
-      {"target": "localStorage.getItem", "source": "browser"}
-    ],
-    "uses": {}
-  },
-  "src/services/api.ts": {
-    "imports": [
-      {"source": "../types", "what": ["AboutMe", "Project", "Skill", "Experience"]},
-      {"source": "../data/fallback", "what": ["fallbackAboutMe", "fallbackProjects", "fallbackSkills", "fallbackExperiences"]}
-    ],
-    "defines": {
-      "variables": ["API_BASE_URL", "api"],
-      "functions": ["fetchWithFallback", "getProject", "createProject", "updateProject", "deleteProject", "getSkill", "createSkill", "updateSkill", "deleteSkill", "getAbout", "updateAbout", "getExperiences", "getExperience", "createExperience", "updateExperience", "deleteExperience"]
-    },
-    "calls": [
-      {"target": "fetch", "source": "browser"},
-      {"target": "new AbortController", "source": "browser"},
-      {"target": "setTimeout", "source": "node_builtin"},
-      {"target": "controller.abort", "source": "browser"},
-      {"target": "clearTimeout", "source": "node_builtin"},
-      {"target": "response.ok", "source": "browser"},
-      {"target": "console.error", "source": "node_builtin"},
-      {"target": "new Error", "source": "node_builtin"},
-      {"target": "response.json", "source": "browser"},
-      {"target": "console.warn", "source": "node_builtin"},
-      {"target": "JSON.stringify", "source": "node_builtin"},
-      {"target": "new URL", "source": "node_builtin"},
-      {"target": "url.toString", "source": "node_builtin"},
-      {"target": "console.log", "source": "node_builtin"},
-      {"target": "fetchWithFallback", "source": "internal"} // Called by exported functions
-    ],
-    "uses": {
-      "types": ["AboutMe", "Project", "Skill", "Experience"],
-      "variables": ["fallbackAboutMe", "fallbackProjects", "fallbackSkills", "fallbackExperiences"]
-    }
-  },
-  "src/types/index.ts": {
-    "imports": [],
-    "defines": {
-      "interfaces": ["Project", "Skill", "AboutMe", "Experience"]
-    },
-    "calls": [],
-    "uses": {}
-  },
-  "src/types/skill.ts": {
-    "imports": [],
-    "defines": {
-      "interfaces": ["Skill"]
-    },
-    "calls": [],
-    "uses": {}
-  },
-  "src/utils/imageUtils.ts": {
-    "imports": [],
-    "defines": {
-      "functions": ["fileToBase64", "validateImage", "resizeImage", "compressImageToMaxSize", "getBase64SizeKB"]
-    },
-    "calls": [
-      {"target": "new Promise", "source": "node_builtin"},
-      {"target": "new FileReader", "source": "browser"},
-      {"target": "reader.readAsDataURL", "source": "browser"},
-      {"target": "file.type.startsWith", "source": "node_builtin"},
-      {"target": "new Image", "source": "browser"},
-      {"target": "Math.round", "source": "node_builtin"},
-      {"target": "document.createElement", "source": "browser"},
-      {"target": "canvas.getContext", "source": "browser"},
-      {"target": "ctx.drawImage", "source": "browser"},
-      {"target": "canvas.toDataURL", "source": "browser"},
-      {"target": "new Error", "source": "node_builtin"},
-      {"target": "resizeImage", "source": "internal"}, // Called by compressImageToMaxSize
-      {"target": "getBase64SizeKB", "source": "internal"}, // Called by compressImageToMaxSize
-      {"target": "base64String.split", "source": "node_builtin"},
-      {"target": "console.log", "source": "node_builtin"}
-    ],
-    "uses": {
-      "interfaces": ["File"]
-    }
-  }
-}
+1.  **Public View:** User visits a page (e.g., `/projects`). The Next.js server or client component fetches data from the backend Express API (`/api/projects`). The API retrieves data from MongoDB and returns it as JSON. The frontend React components render the data.
+2.  **Admin Login:** User visits `/admin/login`, enters credentials. Frontend sends credentials to `/api/auth/login`. Backend validates against `.env` variables. If valid, backend returns a JWT. Frontend stores the JWT in `localStorage`.
+3.  **Admin CRUD:** Admin navigates to `/admin`. The `AdminDashboard` checks for the token. Admin uses forms (e.g., in `AdminProjectsManager`). On submit:
+    *   Frontend retrieves the JWT from `localStorage`.
+    *   Frontend sends the request (POST/PATCH/DELETE) with form data (including potentially base64 `imageData`) and the token in the `Authorization` header to the corresponding backend API endpoint (e.g., `/api/projects/:id`).
+    *   Backend middleware (`adminAuth`) verifies the JWT.
+    *   Backend controller processes the request, interacts with MongoDB via Mongoose models, and returns a success/error response.
+    *   Frontend receives the response, updates its state (calling `onUpdate` to refetch data), and provides user feedback.
+
+```graph
+FILE: backend/src/app.ts
+  IMPORTS:
+    - express -> [express, Request, Response, NextFunction]
+    - cors
+    - dotenv -> [config]
+    - ./config/database -> [connectDB]
+    - ./routes/projectRoutes -> [projectRoutes]
+    - ./routes/skillRoutes -> [skillRoutes]
+    - ./routes/aboutRoutes -> [aboutRoutes]
+    - ./routes/authRoutes -> [authRoutes]
+    - ./routes/experienceRoutes -> [experienceRoutes]
+    - ./utils/errorHandler -> [AppError]
+  VARIABLES:
+    - app: from express()
+    - port: from process.env.PORT
+    - server
+  FUNCTIONS:
+    - <anonymous> (middleware): calls [console.log, next]
+    - <anonymous> (404 handler): calls [next, new AppError]
+    - <anonymous> (global error handler): calls [res.status, res.json]
+    - gracefulShutdown: calls [console.log, server.close, process.exit]
+  CALLS:
+    - config()
+    - express()
+    - app.use(express.json())
+    - app.use(cors())
+    - app.use(<anonymous_middleware>)
+    - app.use('/api/auth', authRoutes)
+    - app.use('/api/projects', projectRoutes)
+    - app.use('/api/skills', skillRoutes)
+    - app.use('/api/about', aboutRoutes)
+    - app.use('/api/experiences', experienceRoutes)
+    - app.all('*', <anonymous_404_handler>)
+    - app.use(<anonymous_error_handler>)
+    - connectDB().then(...)
+    - app.listen(port, <callback>)
+    - console.log(...)
+    - console.error(...)
+    - process.exit(...)
+    - process.on('SIGTERM', gracefulShutdown)
+    - process.on('SIGINT', gracefulShutdown)
+  INSTANTIATES:
+    - AppError
+
+FILE: backend/src/config/database.ts
+  IMPORTS:
+    - mongoose
+  FUNCTIONS:
+    - connectDB (async): calls [process.env.MONGODB_URI, mongoose.connect, console.log, console.error, process.exit]
+
+FILE: backend/src/controllers/aboutController.ts
+  IMPORTS:
+    - express -> [Request, Response, NextFunction]
+    - express-validator -> [validationResult]
+    - ../models/AboutMe -> [AboutMe, IAboutMe]
+    - ../utils/errorHandler -> [AppError, catchAsync]
+  FUNCTIONS:
+    - getAboutMe (async, wrapped by catchAsync): calls [AboutMe.findOne, next, new AppError, res.status, res.json]
+    - updateAboutMe (async, wrapped by catchAsync): calls [validationResult, errors.isEmpty, next, new AppError, AboutMe.findOneAndUpdate, res.status, res.json]
+  INSTANTIATES:
+    - AppError
+  USES_MONGOOSE_MODELS:
+    - AboutMe: [findOne, findOneAndUpdate]
+
+FILE: backend/src/controllers/authController.ts
+  IMPORTS:
+    - express -> [Request, Response, NextFunction]
+    - jsonwebtoken -> [jwt]
+    - ../utils/errorHandler -> [AppError, catchAsync]
+  FUNCTIONS:
+    - login (async, wrapped by catchAsync): calls [console.log, process.env.ADMIN_USERNAME, process.env.ADMIN_PASSWORD, jwt.sign, process.env.JWT_SECRET, res.status, res.json, next, new AppError]
+  INSTANTIATES:
+    - AppError
+
+FILE: backend/src/controllers/experienceController.ts
+  IMPORTS:
+    - express -> [Request, Response]
+    - ../models/Experience -> [Experience]
+    - ../middleware/authMiddleware -> [adminAuth, AuthRequest]
+  FUNCTIONS:
+    - getExperiences (async): calls [Experience.find, sort, res.status, res.json, console.error]
+    - getExperience (async): calls [Experience.findById, res.status, res.json, console.error]
+    - createExperience (async): calls [res.status, res.json, new Experience, experience.save, console.error]
+    - updateExperience (async): calls [res.status, res.json, Experience.findByIdAndUpdate, console.error]
+    - deleteExperience (async): calls [res.status, res.json, Experience.findByIdAndDelete, console.error]
+  INSTANTIATES:
+    - Experience (Mongoose Model)
+  USES_MONGOOSE_MODELS:
+    - Experience: [find, findById, save, findByIdAndUpdate, findByIdAndDelete]
+
+FILE: backend/src/controllers/projectController.ts
+  IMPORTS:
+    - express -> [Request, Response, NextFunction]
+    - express-validator -> [validationResult]
+    - ../models/Project -> [Project, IProject]
+    - ../utils/errorHandler -> [AppError, catchAsync]
+  FUNCTIONS:
+    - getAllProjects (async, wrapped by catchAsync): calls [Project.find, sort, res.status, res.json]
+    - getProject (async, wrapped by catchAsync): calls [Project.findById, next, new AppError, res.status, res.json]
+    - createProject (async, wrapped by catchAsync): calls [validationResult, errors.isEmpty, next, new AppError, Project.create, res.status, res.json]
+    - updateProject (async, wrapped by catchAsync): calls [validationResult, errors.isEmpty, next, new AppError, Project.findByIdAndUpdate, res.status, res.json]
+    - deleteProject (async, wrapped by catchAsync): calls [Project.findByIdAndDelete, next, new AppError, res.status, res.json]
+  INSTANTIATES:
+    - AppError
+  USES_MONGOOSE_MODELS:
+    - Project: [find, findById, create, findByIdAndUpdate, findByIdAndDelete]
+
+FILE: backend/src/controllers/skillController.ts
+  IMPORTS:
+    - express -> [Request, Response, NextFunction]
+    - express-validator -> [validationResult]
+    - ../models/Skill -> [Skill, ISkill]
+    - ../utils/errorHandler -> [AppError, catchAsync]
+  FUNCTIONS:
+    - getAllSkills (async, wrapped by catchAsync): calls [Skill.find, res.status, res.json]
+    - getSkill (async, wrapped by catchAsync): calls [Skill.findById, next, new AppError, res.status, res.json]
+    - createSkill (async, wrapped by catchAsync): calls [validationResult, errors.isEmpty, next, new AppError, Skill.create, res.status, res.json]
+    - updateSkill (async, wrapped by catchAsync): calls [validationResult, errors.isEmpty, next, new AppError, Skill.findByIdAndUpdate, res.status, res.json]
+    - deleteSkill (async, wrapped by catchAsync): calls [Skill.findByIdAndDelete, next, new AppError, res.status, res.send]
+  INSTANTIATES:
+    - AppError
+  USES_MONGOOSE_MODELS:
+    - Skill: [find, findById, create, findByIdAndUpdate, findByIdAndDelete]
+
+FILE: backend/src/middleware/authMiddleware.ts
+  IMPORTS:
+    - express -> [Request, Response, NextFunction]
+    - ../utils/errorHandler -> [AppError]
+    - jsonwebtoken -> [jwt]
+  INTERFACES:
+    - AuthRequest
+  FUNCTIONS:
+    - adminAuth: calls [req.headers.authorization, split, new AppError, jwt.verify, process.env.JWT_SECRET, next]
+  INSTANTIATES:
+    - AppError
+
+FILE: backend/src/models/About.ts
+  IMPORTS:
+    - mongoose -> [Schema, model, Document]
+  INTERFACES:
+    - IAbout
+  VARIABLES:
+    - AboutSchema: from new Schema()
+  MONGOOSE_MODELS:
+    - About: from model('About', AboutSchema)
+
+FILE: backend/src/models/AboutMe.ts
+  IMPORTS:
+    - mongoose -> [Schema, model, Document]
+  INTERFACES:
+    - IAboutMe
+  VARIABLES:
+    - AboutMeSchema: from new Schema()
+  MONGOOSE_MODELS:
+    - AboutMe: from model('AboutMe', AboutMeSchema)
+
+FILE: backend/src/models/Experience.ts
+  IMPORTS:
+    - mongoose -> [mongoose, Document, Schema]
+  INTERFACES:
+    - IExperience
+  VARIABLES:
+    - experienceSchema: from new Schema()
+  MONGOOSE_MODELS:
+    - Experience: from mongoose.model('Experience', experienceSchema)
+
+FILE: backend/src/models/Project.ts
+  IMPORTS:
+    - mongoose -> [Schema, model, Document]
+  INTERFACES:
+    - IProject
+  VARIABLES:
+    - ProjectSchema: from new Schema()
+  SCHEMA_HOOKS:
+    - ProjectSchema.pre('save', <anonymous_hook>): calls [next, new Error]
+  MONGOOSE_MODELS:
+    - Project: from model('Project', ProjectSchema)
+
+FILE: backend/src/models/Skill.ts
+  IMPORTS:
+    - mongoose -> [Schema, model, Document]
+  INTERFACES:
+    - ISkill
+  VARIABLES:
+    - SkillSchema: from new Schema()
+  MONGOOSE_MODELS:
+    - Skill: from model('Skill', SkillSchema)
+
+FILE: backend/src/routes/aboutRoutes.ts
+  IMPORTS:
+    - express -> [Router]
+    - express-validator -> [body]
+    - ../controllers/aboutController -> [getAboutMe, updateAboutMe]
+    - ../middleware/authMiddleware -> [adminAuth]
+  VARIABLES:
+    - router: from Router()
+    - aboutValidation: array of validation middleware
+  CALLS:
+    - Router()
+    - body(...).trim().notEmpty().withMessage(...)
+    - body(...).optional().isURL().withMessage(...)
+    - router.route('/').get(getAboutMe)
+    - router.route('/').put(adminAuth, aboutValidation, updateAboutMe)
+
+FILE: backend/src/routes/authRoutes.ts
+  IMPORTS:
+    - express
+    - ../controllers/authController -> [login]
+  VARIABLES:
+    - router: from express.Router()
+  CALLS:
+    - express.Router()
+    - router.post('/login', login)
+
+FILE: backend/src/routes/experienceRoutes.ts
+  IMPORTS:
+    - express
+    - ../controllers/experienceController -> [getExperiences, getExperience, createExperience, updateExperience, deleteExperience]
+    - ../middleware/authMiddleware -> [adminAuth]
+  VARIABLES:
+    - router: from express.Router()
+  CALLS:
+    - express.Router()
+    - router.get('/', getExperiences)
+    - router.get('/:id', getExperience)
+    - router.post('/', adminAuth, createExperience)
+    - router.put('/:id', adminAuth, updateExperience)
+    - router.delete('/:id', adminAuth, deleteExperience)
+
+FILE: backend/src/routes/projectRoutes.ts
+  IMPORTS:
+    - express -> [Router]
+    - express-validator -> [body]
+    - ../controllers/projectController -> [getAllProjects, getProject, createProject, updateProject, deleteProject]
+    - ../middleware/authMiddleware -> [adminAuth]
+  VARIABLES:
+    - router: from Router()
+    - projectValidation: array of validation middleware
+    - updateProjectValidation: array of validation middleware
+  CALLS:
+    - Router()
+    - body(...).trim().notEmpty().withMessage(...)
+    - body(...).isArray().withMessage(...)
+    - body().custom(<anonymous_validator>)
+    - router.route('/').get(getAllProjects)
+    - router.route('/').post(adminAuth, projectValidation, createProject)
+    - router.route('/:id').get(getProject)
+    - router.route('/:id').patch(adminAuth, updateProjectValidation, updateProject)
+    - router.route('/:id').delete(adminAuth, deleteProject)
+  INSTANTIATES:
+    - Error (in custom validator)
+
+FILE: backend/src/routes/skillRoutes.ts
+  IMPORTS:
+    - express -> [Router]
+    - express-validator -> [body]
+    - ../controllers/skillController -> [getAllSkills, getSkill, createSkill, updateSkill, deleteSkill]
+    - ../middleware/authMiddleware -> [adminAuth]
+  VARIABLES:
+    - router: from Router()
+    - skillValidation: array of validation middleware
+  CALLS:
+    - Router()
+    - body(...).trim().notEmpty().withMessage(...)
+    - body(...).isIn(...).withMessage(...)
+    - body(...).isInt(...).withMessage(...)
+    - router.route('/').get(getAllSkills)
+    - router.route('/').post(adminAuth, skillValidation, createSkill)
+    - router.route('/:id').get(getSkill)
+    - router.route('/:id').patch(adminAuth, skillValidation, updateSkill)
+    - router.route('/:id').delete(adminAuth, deleteSkill)
+
+FILE: backend/src/scripts/initDb.ts
+  IMPORTS:
+    - mongoose
+    - ../models/AboutMe -> [AboutMe]
+    - dotenv
+  FUNCTIONS:
+    - initializeDb (async): calls [mongoose.connect, process.env.MONGODB_URI, console.log, AboutMe.findOne, AboutMe.create, console.error, mongoose.disconnect]
+  CALLS:
+    - dotenv.config()
+    - initializeDb()
+  USES_MONGOOSE_MODELS:
+    - AboutMe: [findOne, create]
+
+FILE: backend/src/scripts/initializeDb.ts
+  IMPORTS:
+    - ../config/database -> [connectDB]
+    - ../models/Project -> [Project]
+    - ../models/AboutMe -> [AboutMe]
+    - ../models/Experience -> [Experience]
+    - dotenv -> [config]
+  FUNCTIONS:
+    - initializeDb (async): calls [connectDB, console.log, Project.countDocuments, Project.create, Experience.countDocuments, Experience.insertMany, AboutMe.countDocuments, AboutMe.create, process.exit, console.error]
+  CALLS:
+    - config()
+    - initializeDb()
+  USES_MONGOOSE_MODELS:
+    - Project: [countDocuments, create]
+    - Experience: [countDocuments, insertMany]
+    - AboutMe: [countDocuments, create]
+
+FILE: backend/src/scripts/resetAboutCollection.ts
+  IMPORTS:
+    - ../config/database -> [connectDB]
+    - ../models/AboutMe -> [AboutMe]
+    - dotenv -> [config]
+  FUNCTIONS:
+    - resetAboutCollection (async): calls [connectDB, console.log, AboutMe.collection.drop, AboutMe.create, console.error, process.exit]
+  CALLS:
+    - config()
+    - resetAboutCollection()
+  USES_MONGOOSE_MODELS:
+    - AboutMe: [collection.drop, create]
+
+FILE: backend/src/scripts/setupEnv.ts
+  IMPORTS:
+    - fs
+    - path
+    - dotenv
+  VARIABLES:
+    - envPath: from path.join
+    - envContent: string literal
+  CALLS:
+    - dotenv.config()
+    - path.join(__dirname, '../../.env')
+    - fs.writeFileSync(envPath, envContent)
+    - console.log(...)
+    - console.error(...)
+    - process.env.PORT
+    - process.env.ADMIN_USERNAME
+    - process.env.MONGODB_URI
+
+FILE: backend/src/utils/errorHandler.ts
+  CLASSES:
+    - AppError: extends Error, constructor calls [super, Error.captureStackTrace]
+  FUNCTIONS:
+    - catchAsync: returns [<anonymous_wrapper_function>] calls [fn, catch]
+
+FILE: src/app/about/page.tsx
+  IMPORTS:
+    - react -> [useState, useEffect, useRef]
+    - @/lib/auth -> [isAdmin, getAuthToken]
+    - @/services/api -> [api]
+    - @/types -> [AboutMe]
+    - @/utils/imageUtils -> [fileToBase64, validateImage, resizeImage]
+    - react-markdown -> [ReactMarkdown]
+  COMPONENTS:
+    - AboutPage (React Function Component): uses hooks [useState, useEffect, useRef], calls [setIsAdminUser, isAdmin, setLoading, api.getAbout, setAbout, setImagePreview, console.error, setEditedAbout, setIsEditing, handleCancel, handleImageSelect, handleSubmit, fileToBase64, resizeImage, api.updateAbout, alert], renders [ReactMarkdown]
+  FUNCTIONS:
+    - fetchAbout (async): calls [setLoading, api.getAbout, setAbout, setImagePreview, console.error]
+    - handleEdit: calls [setIsEditing]
+    - handleCancel: calls [setIsEditing, setEditedAbout, setSelectedImage, setImagePreview, fileInputRef.current.value]
+    - handleImageSelect (async): calls [validateImage, alert, setSelectedImage, fileToBase64, resizeImage, setImagePreview]
+    - handleSubmit (async): calls [e.preventDefault, setIsSubmitting, getAuthToken, alert, fileToBase64, resizeImage, api.updateAbout, setAbout, setIsEditing, setSelectedImage, fileInputRef.current.value, console.error]
+
+FILE: src/app/admin/login/page.tsx
+  IMPORTS:
+    - react -> [useState]
+    - next/navigation -> [useRouter]
+    - @/lib/auth -> [login]
+  COMPONENTS:
+    - AdminLogin (React Function Component): uses hooks [useState, useRouter], calls [setUsername, setPassword, setError, handleSubmit, login, router.push, router.refresh]
+  FUNCTIONS:
+    - handleSubmit (async): calls [e.preventDefault, login, router.push, router.refresh, setError]
+
+FILE: src/app/admin/page.tsx
+  IMPORTS:
+    - react -> [Suspense]
+    - @/components/AdminDashboard -> [AdminDashboard]
+  COMPONENTS:
+    - AdminLoading (React Function Component)
+    - AdminPage (React Function Component): renders [Suspense, AdminDashboard, AdminLoading]
+
+FILE: src/app/experiences/page.tsx
+  IMPORTS:
+    - react -> [useState, useEffect, useCallback]
+    - @/components/ExperienceSection -> [ExperienceSection]
+    - @/services/api -> [api]
+    - @/types -> [Experience]
+  COMPONENTS:
+    - ExperiencesPage (React Function Component): uses hooks [useState, useEffect, useCallback], calls [setExperiences, setLoading, fetchExperiences, handleExperienceUpdate], renders [ExperienceSection]
+  FUNCTIONS:
+    - fetchExperiences (async, within useEffect): calls [api.getExperiences, setExperiences, console.error, setLoading]
+    - handleExperienceUpdate (useCallback): calls [console.log, setExperiences]
+
+FILE: src/app/layout.tsx
+  IMPORTS:
+    - next/metadata -> [Metadata]
+    - next/font/google -> [Geist, Geist_Mono]
+    - @/components/Navigation -> [Navigation]
+    - ./globals.css
+    - react -> [Suspense]
+  VARIABLES:
+    - geistSans
+    - geistMono
+    - metadata: Metadata object
+  COMPONENTS:
+    - NavigationFallback (React Function Component)
+    - RootLayout (React Function Component): renders [html, body, Suspense, Navigation, NavigationFallback, main]
+
+FILE: src/app/page.tsx
+  IMPORTS:
+    - @/components/AboutSection -> [AboutSection]
+    - @/components/ProjectCard -> [ProjectCard]
+    - @/components/SkillsGrid -> [SkillsGrid]
+    - @/components/ExperienceSection -> [ExperienceSection]
+    - @/services/api -> [api]
+  COMPONENTS:
+    - Home (React Server Component, async): calls [Promise.all, api.getProjects, api.getSkills, api.getAbout, api.getExperiences], renders [AboutSection, ProjectCard, ExperienceSection, SkillsGrid]
+
+FILE: src/app/projects/page.tsx
+  IMPORTS:
+    - react -> [useState, useEffect, useRef]
+    - @/lib/auth -> [isAdmin, getAuthToken]
+    - @/services/api -> [api]
+    - @/types -> [Project]
+    - next/image -> [Image]
+    - @/utils/imageUtils -> [fileToBase64, validateImage, compressImageToMaxSize]
+  COMPONENTS:
+    - ProjectsPage (React Function Component): uses hooks [useState, useEffect, useRef], calls [setIsAdminUser, isAdmin, setLoading, api.getProjects, setProjects, console.error, resetForm, handleCreateNew, handleEdit, setFormData, setImagePreview, handleImageSelect, validateImage, alert, setSelectedImage, fileToBase64, compressImageToMaxSize, handleTechKeyPress, removeTech, handleSubmit, getAuthToken, api.createProject, api.updateProject, handleDelete, confirm, api.deleteProject], renders [Image]
+  FUNCTIONS:
+    - fetchProjects (async): calls [setLoading, api.getProjects, setProjects, console.error, setLoading]
+    - resetForm: calls [setFormData, setIsCreating, setEditingId, setSelectedImage, setImagePreview, setTechInput, fileInputRef.current.value]
+    - handleCreateNew: calls [setIsCreating, setEditingId, resetForm]
+    - handleEdit: calls [setIsCreating, setEditingId, setFormData, setImagePreview]
+    - handleImageSelect (async): calls [validateImage, alert, setSelectedImage, fileToBase64, compressImageToMaxSize, setImagePreview]
+    - handleTechKeyPress: calls [e.preventDefault, setFormData, setTechInput]
+    - removeTech: calls [setFormData]
+    - handleSubmit (async): calls [e.preventDefault, setIsSubmitting, getAuthToken, alert, selectedImage, fileToBase64, compressImageToMaxSize, api.createProject, setProjects, api.updateProject, projects.map, projects.find, resetForm, console.error]
+    - handleDelete (async): calls [confirm, setIsSubmitting, getAuthToken, alert, api.deleteProject, setProjects, projects.filter, resetForm, console.error]
+
+FILE: src/app/skills/page.tsx
+  IMPORTS:
+    - react -> [useState, useEffect]
+    - @/lib/auth -> [isAdmin, getAuthToken]
+    - @/services/api -> [api]
+    - @/types -> [Skill]
+  VARIABLES:
+    - CATEGORY_LABELS: object literal
+  COMPONENTS:
+    - SkillsPage (React Function Component): uses hooks [useState, useEffect], calls [setIsAdminUser, isAdmin, setLoading, setError, fetchSkills, resetForm, handleCreateNew, handleEdit, setFormData, handleSubmit, getAuthToken, api.createSkill, api.updateSkill, handleDelete, window.confirm, api.deleteSkill, handleCancel, handleInputChange, skills.reduce], renders skill list
+  FUNCTIONS:
+    - fetchSkills (async): calls [setLoading, api.getSkills, setSkills, setError, console.error, setLoading]
+    - resetForm: calls [setFormData, setIsCreating, setEditingId]
+    - handleCreateNew: calls [setIsCreating, setEditingId, setFormData]
+    - handleEdit: calls [setIsCreating, setEditingId, setFormData]
+    - handleSubmit (async): calls [e.preventDefault, setIsSubmitting, getAuthToken, alert, api.createSkill, api.updateSkill, fetchSkills, resetForm, console.error]
+    - handleDelete (async): calls [window.confirm, getAuthToken, alert, api.deleteSkill, fetchSkills, resetForm, console.error]
+    - handleCancel: calls [resetForm]
+    - handleInputChange: calls [setFormData, parseInt]
+
+FILE: src/components/AboutSection.tsx
+  IMPORTS:
+    - @/types -> [AboutMe]
+    - next/link -> [Link]
+  COMPONENTS:
+    - AboutSection (React Function Component): renders [section, h1, p, img, div, svg, span, a, Link]
+
+FILE: src/components/AdminAboutManager.tsx
+  IMPORTS:
+    - react -> [useState, useRef]
+    - @/lib/auth -> [getAuthToken]
+    - @/types -> [AboutMe]
+    - @/services/api -> [api]
+    - @/utils/imageUtils -> [fileToBase64, validateImage, resizeImage]
+  INTERFACES:
+    - AdminAboutManagerProps
+  COMPONENTS:
+    - AdminAboutManager (React Function Component): uses hooks [useState, useRef], calls [setEditedAbout, setIsSubmitting, setSelectedImage, setImagePreview, handleImageSelect, validateImage, alert, fileToBase64, resizeImage, handleSubmit, getAuthToken, api.updateAbout, onUpdate, console.error], renders form elements, img
+  FUNCTIONS:
+    - handleImageSelect (async): calls [validateImage, alert, setSelectedImage, fileToBase64, resizeImage, setImagePreview]
+    - handleSubmit (async): calls [e.preventDefault, setIsSubmitting, selectedImage, fileToBase64, resizeImage, api.updateAbout, getAuthToken, onUpdate, console.error, alert]
+
+FILE: src/components/AdminDashboard.tsx
+  IMPORTS:
+    - react -> [useState, useEffect]
+    - next/navigation -> [useRouter, useSearchParams]
+    - @/lib/auth -> [isAdmin]
+    - @/services/api -> [api]
+    - @/types -> [Project, Skill, AboutMe, Experience]
+    - @/components/AdminSkillsManager -> [AdminSkillsManager]
+    - @/components/AdminProjectsManager -> [AdminProjectsManager]
+    - @/components/AdminAboutManager -> [AdminAboutManager]
+    - @/components/AdminExperienceManager -> [AdminExperienceManager]
+    - next/image -> [Image]
+  COMPONENTS:
+    - AdminDashboard (React Function Component): uses hooks [useState, useEffect, useRouter, useSearchParams], calls [setIsPageAdmin, isAdmin, router.push, setActiveTab, searchParams.get, setLoading, fetchData, Promise.all, api.getSkills, api.getProjects, api.getAbout, api.getExperiences, console.log, setSkills, setProjects, setAbout, setExperiences, console.error, handleRefreshData, handleTabClick, router.replace], renders [AdminSkillsManager, AdminProjectsManager, AdminExperienceManager, AdminAboutManager, Image]
+  FUNCTIONS:
+    - fetchData (async, within useEffect): calls [setLoading, Promise.all, api.getSkills, api.getProjects, api.getAbout, api.getExperiences, console.log, setSkills, setProjects, setAbout, setExperiences, console.error, setLoading]
+    - handleRefreshData (async): calls [setLoading, Promise.all, api.getProjects, api.getSkills, api.getAbout, api.getExperiences, setSkills, setProjects, setAbout, setExperiences, console.error, setLoading]
+    - handleTabClick: calls [setActiveTab, router.push]
+
+FILE: src/components/AdminExperienceManager.tsx
+  IMPORTS:
+    - react -> [useState]
+    - @/lib/auth -> [getAuthToken]
+    - @/types -> [Experience]
+    - @/services/api -> [api]
+  INTERFACES:
+    - AdminExperienceManagerProps
+  COMPONENTS:
+    - AdminExperienceManager (React Function Component): uses hooks [useState], calls [setIsCreating, setEditingId, setIsSubmitting, console.log, setFormData, resetForm, handleCreateNew, handleEdit, handleSubmit, getAuthToken, alert, api.createExperience, api.updateExperience, onUpdate, handleDelete, confirm, api.deleteExperience], renders form and list
+  FUNCTIONS:
+    - resetForm: calls [setFormData, setIsCreating, setEditingId]
+    - handleCreateNew: calls [setIsCreating, setEditingId, setFormData]
+    - handleEdit: calls [setIsCreating, setEditingId, setFormData]
+    - handleSubmit (async): calls [e.preventDefault, setIsSubmitting, getAuthToken, alert, api.createExperience, api.updateExperience, resetForm, onUpdate, console.error]
+    - handleDelete (async): calls [confirm, setIsSubmitting, getAuthToken, alert, api.deleteExperience, onUpdate, resetForm, console.error]
+
+FILE: src/components/AdminHeader.tsx
+  IMPORTS:
+    - next/navigation -> [useRouter]
+    - @/lib/auth -> [isAdmin, logout]
+  COMPONENTS:
+    - AdminHeader (React Function Component): uses hooks [useRouter], calls [isAdmin, handleLogout, logout, router.refresh], renders admin bar conditionally
+
+FILE: src/components/AdminProjectsManager.tsx
+  IMPORTS:
+    - react -> [useState, useRef]
+    - @/lib/auth -> [getAuthToken]
+    - @/types -> [Project]
+    - @/services/api -> [api]
+    - @/utils/imageUtils -> [fileToBase64, validateImage, resizeImage]
+  INTERFACES:
+    - AdminProjectsManagerProps
+  COMPONENTS:
+    - AdminProjectsManager (React Function Component): uses hooks [useState, useRef], calls [setEditingProject, setNewProject, setIsSubmitting, setTechInput, setSelectedImage, setImagePreview, handleImageSelect, validateImage, alert, fileToBase64, resizeImage, handleTechKeyPress, removeTech, handleEdit, handleDelete, confirm, api.deleteProject, onUpdate, console.error, handleSubmitEdit, api.updateProject, handleSubmitNew, api.createProject], renders forms and list
+  FUNCTIONS:
+    - handleImageSelect (async): calls [validateImage, alert, setSelectedImage, fileToBase64, resizeImage, setImagePreview]
+    - handleTechKeyPress: calls [e.preventDefault, setNewProject, setEditingProject, setTechInput]
+    - removeTech: calls [setNewProject, setEditingProject]
+    - handleEdit: calls [setEditingProject, setImagePreview]
+    - handleDelete (async): calls [confirm, setIsSubmitting, api.deleteProject, getAuthToken, onUpdate, console.error, alert]
+    - handleSubmitEdit (async): calls [e.preventDefault, setIsSubmitting, selectedImage, fileToBase64, resizeImage, api.updateProject, getAuthToken, setEditingProject, setSelectedImage, setImagePreview, onUpdate, console.error, alert]
+    - handleSubmitNew (async): calls [e.preventDefault, alert, setIsSubmitting, fileToBase64, resizeImage, api.createProject, getAuthToken, setNewProject, setSelectedImage, setImagePreview, fileInputRef.current.value, onUpdate, console.error]
+
+FILE: src/components/AdminSkillsManager.tsx
+  IMPORTS:
+    - react -> [useState]
+    - @/lib/auth -> [getAuthToken]
+    - @/types/skill -> [Skill]
+  INTERFACES:
+    - AdminSkillsManagerProps
+  COMPONENTS:
+    - AdminSkillsManager (React Function Component): uses hooks [useState], calls [setEditingSkill, setNewSkill, setIsSubmitting, handleEdit, handleDelete, confirm, fetch, getAuthToken, onUpdate, console.error, alert, handleSubmitEdit, JSON.stringify, handleSubmitNew, parseInt], renders form and list
+  FUNCTIONS:
+    - handleEdit: calls [setEditingSkill]
+    - handleDelete (async): calls [confirm, setIsSubmitting, fetch, getAuthToken, onUpdate, console.error, alert]
+    - handleSubmitEdit (async): calls [e.preventDefault, setIsSubmitting, fetch, JSON.stringify, getAuthToken, setEditingSkill, onUpdate, console.error, alert]
+    - handleSubmitNew (async): calls [e.preventDefault, setIsSubmitting, fetch, JSON.stringify, getAuthToken, console.log, setNewSkill, onUpdate, console.error, alert]
+
+FILE: src/components/ExperienceSection.tsx
+  IMPORTS:
+    - react -> [useEffect, useState]
+    - @/types -> [Experience]
+    - @/services/api -> [api]
+    - @/lib/auth -> [getAuthToken]
+    - react-markdown -> [ReactMarkdown]
+  INTERFACES:
+    - ExperienceSectionProps
+  COMPONENTS:
+    - ExperienceSection (React Function Component): uses hooks [useState, useEffect], calls [setExperiences, setLoading, setIsAdmin, getAuthToken, fetchExperiences, api.getExperiences, console.error, resetForm, setFormData, setIsCreating, setEditingId, handleCreateNew, handleEdit, handleSubmit, alert, api.createExperience, api.updateExperience, notifyParentOfChanges, handleDelete, confirm, setTimeout, api.deleteExperience, console.log, setShowPreview], renders [ReactMarkdown]
+  FUNCTIONS:
+    - fetchExperiences (async, within useEffect): calls [api.getExperiences, setExperiences, console.error, setLoading]
+    - resetForm: calls [setFormData, setIsCreating, setEditingId]
+    - handleCreateNew: calls [setIsCreating, setEditingId, setFormData]
+    - handleEdit: calls [setIsCreating, setEditingId, setFormData]
+    - handleSubmit (async): calls [e.preventDefault, setIsSubmitting, getAuthToken, alert, api.createExperience, console.log, setExperiences, api.updateExperience, setExperiences, setTimeout, notifyParentOfChanges, resetForm, console.error]
+    - handleDelete (async): calls [confirm, setIsSubmitting, getAuthToken, alert, console.log, setExperiences, api.deleteExperience, setTimeout, notifyParentOfChanges, resetForm, console.error, api.getExperiences]
+    - notifyParentOfChanges: calls [onExperienceUpdate]
+
+FILE: src/components/Navigation.tsx
+  IMPORTS:
+    - react -> [useState, useEffect]
+    - next/link -> [Link]
+    - next/navigation -> [usePathname, useSearchParams, useRouter]
+    - @/lib/auth -> [isAdmin, logout]
+  COMPONENTS:
+    - Navigation (React Function Component): uses hooks [useState, useEffect, usePathname, useSearchParams, useRouter], calls [setIsAdminUser, isAdmin, checkAdminStatus, window.addEventListener, window.removeEventListener, handleLogout, logout, router.refresh], renders [Link]
+  FUNCTIONS:
+    - checkAdminStatus (within useEffect): calls [setIsAdminUser, isAdmin]
+    - handleLogout: calls [logout, setIsAdminUser, router.refresh]
+
+FILE: src/components/ProjectCard.tsx
+  IMPORTS:
+    - @/types -> [Project]
+    - next/image -> [Image]
+  INTERFACES:
+    - ProjectCardProps
+  COMPONENTS:
+    - ProjectCard (React Function Component): renders [Image, h3, p, span, a]
+
+FILE: src/components/SkillsGrid.tsx
+  IMPORTS:
+    - @/lib/auth -> [isAdmin]
+    - @/types -> [Skill]
+    - ./AdminSkillsManager -> [AdminSkillsManager]
+  INTERFACES:
+    - SkillsGridProps
+  VARIABLES:
+    - CATEGORY_LABELS: object literal
+  COMPONENTS:
+    - SkillsGrid (React Function Component): calls [isAdmin, categories.map, skills.filter], renders [div, h3, span, AdminSkillsManager]
+
+FILE: src/data/fallback.ts
+  IMPORTS:
+    - ../types -> [AboutMe, Project, Skill, Experience]
+  VARIABLES:
+    - fallbackProjects: Project[]
+    - fallbackSkills: Skill[]
+    - fallbackExperiences: Experience[]
+    - fallbackAboutMe: AboutMe
+
+FILE: src/lib/auth.ts
+  FUNCTIONS:
+    - login (async): calls [fetch, process.env.NEXT_PUBLIC_API_URL, JSON.stringify, response.json, window.localStorage.setItem, window.dispatchEvent, new Event]
+    - logout: calls [window.localStorage.removeItem, window.dispatchEvent, new Event]
+    - getAuthToken: calls [window.localStorage.getItem]
+    - isAdmin: calls [getAuthToken]
+
+FILE: src/services/api.ts
+  IMPORTS:
+    - ../types -> [AboutMe, Project, Skill, Experience]
+    - ../data/fallback -> [fallbackAboutMe, fallbackProjects, fallbackSkills, fallbackExperiences]
+  VARIABLES:
+    - API_BASE_URL: from process.env.NEXT_PUBLIC_API_URL
+  FUNCTIONS:
+    - fetchWithFallback (async): calls [new AbortController, setTimeout, fetch, clearTimeout, console.error, console.warn, response.json]
+    - getProject (async): calls [fetch, response.json]
+    - createProject (async): calls [fetch, JSON.stringify, response.json, new Error]
+    - updateProject (async): calls [fetch, JSON.stringify, response.json, new Error]
+    - deleteProject (async): calls [fetch, response.json, new Error]
+    - getSkill (async): calls [fetch, response.json]
+    - createSkill (async): calls [fetch, JSON.stringify, response.json, new Error]
+    - updateSkill (async): calls [fetch, JSON.stringify, response.json, new Error]
+    - deleteSkill (async): calls [fetch, response.json, new Error]
+    - getAbout (async): calls [fetchWithFallback]
+    - updateAbout (async): calls [fetch, JSON.stringify, response.json, new Error]
+    - getExperiences (async): calls [fetchWithFallback]
+    - getExperience (async): calls [fetchWithFallback]
+    - createExperience (async): calls [fetch, JSON.stringify, response.json, new Error]
+    - updateExperience (async): calls [fetch, JSON.stringify, response.json, new Error]
+    - deleteExperience (async): calls [console.log, new URL, fetch, response.json, new Error]
+  VARIABLES:
+    - api: object literal containing API functions
+  INSTANTIATES:
+    - AbortController
+    - Error
+    - URL
+
+FILE: src/types/index.ts
+  INTERFACES:
+    - Project
+    - Skill
+    - AboutMe
+    - Experience
+
+FILE: src/types/skill.ts
+  INTERFACES:
+    - Skill
+
+FILE: src/utils/imageUtils.ts
+  FUNCTIONS:
+    - fileToBase64: returns [new Promise], calls [new FileReader, reader.readAsDataURL]
+    - validateImage: returns validation object
+    - resizeImage: returns [new Promise], calls [new Image, Math.round, document.createElement, canvas.getContext, ctx.drawImage, canvas.toDataURL, new Error]
+    - compressImageToMaxSize (async): calls [resizeImage, getBase64SizeKB, console.log]
+    - getBase64SizeKB (within compressImageToMaxSize): calls [split, length]
+  INSTANTIATES:
+    - Promise
+    - FileReader
+    - Image
+    - Error
 ```
 
 This file is a merged representation of a subset of the codebase, containing specifically included files and files not matching ignore patterns, combined into a single document by Repomix.
@@ -1417,6 +871,7 @@ src/app/projects/page.tsx
 src/app/skills/page.tsx
 src/components/AboutSection.tsx
 src/components/AdminAboutManager.tsx
+src/components/AdminDashboard.tsx
 src/components/AdminExperienceManager.tsx
 src/components/AdminHeader.tsx
 src/components/AdminProjectsManager.tsx
@@ -1439,7 +894,6 @@ This section contains the contents of the repository's files.
 <file path="backend/src/app.ts">
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import * as path from 'path';
 import { config } from 'dotenv';
 import { connectDB } from './config/database';
 import projectRoutes from './routes/projectRoutes';
@@ -1455,28 +909,23 @@ config();
 const app = express();
 const port = process.env.PORT || 5000;
 
-const isOnline = false;
-
 // Middleware
 app.use(express.json());
-app.use(cors({
-  origin: isOnline ? 'https://fluttersystems.com' : '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(cors());
 
-
-var base_route = '';
-
-if (isOnline)
-  base_route = '/portfolio';
+// ---> ADD THIS MIDDLEWARE <---
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] Received Request: ${req.method} ${req.originalUrl}`);
+  next();
+});
+// ---> END ADD <---
 
 // Routes
-app.use(base_route + '/api/auth', authRoutes);
-app.use(base_route + '/api/projects', projectRoutes);
-app.use(base_route + '/api/skills', skillRoutes);
-app.use(base_route + '/api/about', aboutRoutes);
-app.use(base_route + '/api/experiences', experienceRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/skills', skillRoutes);
+app.use('/api/about', aboutRoutes);
+app.use('/api/experiences', experienceRoutes);
 
 // Handle 404 errors
 app.all('*', (req: Request, res: Response, next: NextFunction) => {
@@ -1523,20 +972,6 @@ const gracefulShutdown = () => {
 // Handle termination signals
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
-
-// Serve static files
-app.use("/portfolio", express.static(path.join(__dirname, "dist")));
-  
-// Fallback route to serve index.html for any unmatched GET request
-app.get('*', (req: Request, res: Response) => {
-  console.log(__dirname);
-  res.sendFile(path.join(__dirname, 'dist/index.html'));
-});
-
-// Start the server
-app.listen(port, () => {
-console.log(`Server is running on http://localhost:${port}`);
-});
 </file>
 
 <file path="backend/src/config/database.ts">
@@ -1609,6 +1044,14 @@ import { AppError, catchAsync } from '../utils/errorHandler';
 export const login = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
   const { username, password } = req.body;
   
+   // --- DEBUGGING ---
+   console.log('Login Attempt:', { username, password });
+   console.log('Env Vars:', {
+       ADMIN_USERNAME: process.env.ADMIN_USERNAME,
+       ADMIN_PASSWORD: process.env.ADMIN_PASSWORD
+   });
+   // --- END DEBUGGING ---
+   
   // Compare with environment variables for admin credentials
   if (username === process.env.ADMIN_USERNAME && 
       password === process.env.ADMIN_PASSWORD) {
@@ -3134,183 +2577,219 @@ export default function AdminLogin() {
 </file>
 
 <file path="src/app/admin/page.tsx">
-'use client';
+// Keep this simple. No 'use client' needed here if we delegate client logic.
+import { Suspense } from 'react';
+import AdminDashboard from '@/components/AdminDashboard';
+//import { isAdmin } from '@/lib/auth'; // Import isAdmin if needed for initial check (optional)
+// If doing server-side redirect, use next/navigation
+// import { redirect } from 'next/navigation';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { isAdmin } from '@/lib/auth';
-import { api } from '@/services/api';
-import { Project, Skill, AboutMe, Experience } from '@/types';
-import AdminSkillsManager from '@/components/AdminSkillsManager';
-import AdminProjectsManager from '@/components/AdminProjectsManager';
-import AdminAboutManager from '@/components/AdminAboutManager';
-import AdminExperienceManager from '@/components/AdminExperienceManager';
+// Simple loading component for Suspense
+function AdminLoading() {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+            <div className="text-center">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Loading Admin...</h2>
+                 <div className="mt-4 inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+        </div>
+    );
+}
+
 
 export default function AdminPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const tabParam = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState<'skills' | 'projects' | 'about' | 'experiences'>('skills');
-  const [skills, setSkills] = useState<Skill[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [about, setAbout] = useState<AboutMe | null>(null);
-  const [experiences, setExperiences] = useState<Experience[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Optional: Perform check server-side if possible, though isAdmin() relies on localStorage
+  // const isUserAdmin = isAdmin(); // This won't work reliably on the server
+  // if (!isUserAdmin) {
+  //    redirect('/'); // Redirect server-side if check was possible
+  // }
+  // The check inside AdminDashboard will handle client-side redirect
 
-  useEffect(() => {
-    if (!isAdmin()) {
-      router.push('/');
-      return;
-    }
-
-    // Set active tab based on URL parameter
-    if (tabParam === 'projects' || tabParam === 'about' || tabParam === 'skills' || tabParam === 'experiences') {
-      setActiveTab(tabParam);
-    }
-
-    const fetchData = async () => {
-      try {
-        const [skillsData, projectsData, aboutData, experiencesData] = await Promise.all([
-          api.getSkills(),
-          api.getProjects(),
-          api.getAbout(),
-          api.getExperiences()
-        ]);
-
-        console.log('Fetched experiences:', experiencesData);
-        console.log('Current active tab:', activeTab);
-
-        setSkills(skillsData);
-        setProjects(projectsData);
-        setAbout(aboutData);
-        setExperiences(experiencesData);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [router, tabParam, activeTab]);
-
-  const handleRefreshData = async () => {
-    try {
-      setLoading(true);
-      const [projectsData, skillsData, aboutData, experiencesData] = await Promise.all([
-        api.getProjects(),
-        api.getSkills(),
-        api.getAbout(),
-        api.getExperiences()
-      ]);
-
-      setSkills(skillsData);
-      setProjects(projectsData);
-      setAbout(aboutData);
-      setExperiences(experiencesData);
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!isAdmin()) {
-    return null;
-  }
-
-  if (loading || !about) {
-    return (
-      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Loading...</h2>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h2>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">Manage your portfolio content</p>
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="border-b border-gray-200 dark:border-gray-700 mb-8">
-          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-            {(['skills', 'projects', 'experiences', 'about'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`
-                  ${activeTab === tab
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
-                  }
-                  whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm capitalize
-                `}
-              >
-                {tab}
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        {/* About Information Summary (shown only when About tab is active) */}
-        {activeTab === 'about' && (
-          <div className="mb-8 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-            <div className="text-center">
-              <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">{about.name}</h3>
-              <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">{about.title}</p>
-              
-              {/* Display profile image */}
-              {(about.imageData || about.imageUrl) && (
-                <div className="flex justify-center mb-6">
-                  <img 
-                    src={about.imageData || about.imageUrl} 
-                    alt={about.name} 
-                    className="w-48 h-auto rounded-lg shadow-md" 
-                  />
-                </div>
-              )}
-              
-              <p className="text-gray-700 dark:text-gray-300 max-w-2xl mx-auto">
-                {about.bio.length > 150 ? `${about.bio.substring(0, 150)}...` : about.bio}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Tab Content */}
-        <div className="mt-8">
-          {activeTab === 'skills' && (
-            <AdminSkillsManager skills={skills} onUpdate={handleRefreshData} />
-          )}
-          {activeTab === 'projects' && (
-            <AdminProjectsManager projects={projects} onUpdate={handleRefreshData} />
-          )}
-          {activeTab === 'experiences' && (
-            <>
-              <div className="bg-yellow-100 dark:bg-yellow-900 p-4 mb-4 rounded-md">
-                <p className="text-yellow-800 dark:text-yellow-200">
-                  Debug info: Active tab is &apos;experiences&apos;. Experience data length: {experiences.length}
-                </p>
-              </div>
-              <AdminExperienceManager experiences={experiences} onUpdate={handleRefreshData} />
-            </>
-          )}
-          {activeTab === 'about' && (
-            <AdminAboutManager about={about} onUpdate={handleRefreshData} />
-          )}
-        </div>
-      </div>
-    </div>
+    <Suspense fallback={<AdminLoading />}>
+      <AdminDashboard />
+    </Suspense>
   );
 }
+
+// 'use client';
+
+// import { useState, useEffect } from 'react';
+// import { useRouter, useSearchParams } from 'next/navigation';
+// import { isAdmin } from '@/lib/auth';
+// import { api } from '@/services/api';
+// import { Project, Skill, AboutMe, Experience } from '@/types';
+// import AdminSkillsManager from '@/components/AdminSkillsManager';
+// import AdminProjectsManager from '@/components/AdminProjectsManager';
+// import AdminAboutManager from '@/components/AdminAboutManager';
+// import AdminExperienceManager from '@/components/AdminExperienceManager';
+
+// export default function AdminPage() {
+//   const router = useRouter();
+//   const searchParams = useSearchParams();
+//   const tabParam = searchParams.get('tab');
+//   const [activeTab, setActiveTab] = useState<'skills' | 'projects' | 'about' | 'experiences'>('skills');
+//   const [skills, setSkills] = useState<Skill[]>([]);
+//   const [projects, setProjects] = useState<Project[]>([]);
+//   const [about, setAbout] = useState<AboutMe | null>(null);
+//   const [experiences, setExperiences] = useState<Experience[]>([]);
+//   const [loading, setLoading] = useState(true);
+
+//   useEffect(() => {
+//     if (!isAdmin()) {
+//       router.push('/');
+//       return;
+//     }
+
+//     // Set active tab based on URL parameter
+//     if (tabParam === 'projects' || tabParam === 'about' || tabParam === 'skills' || tabParam === 'experiences') {
+//       setActiveTab(tabParam);
+//     }
+
+//     const fetchData = async () => {
+//       try {
+//         const [skillsData, projectsData, aboutData, experiencesData] = await Promise.all([
+//           api.getSkills(),
+//           api.getProjects(),
+//           api.getAbout(),
+//           api.getExperiences()
+//         ]);
+
+//         console.log('Fetched experiences:', experiencesData);
+//         console.log('Current active tab:', activeTab);
+
+//         setSkills(skillsData);
+//         setProjects(projectsData);
+//         setAbout(aboutData);
+//         setExperiences(experiencesData);
+//       } catch (error) {
+//         console.error('Error fetching data:', error);
+//       } finally {
+//         setLoading(false);
+//       }
+//     };
+
+//     fetchData();
+//   }, [router, tabParam, activeTab]);
+
+//   const handleRefreshData = async () => {
+//     try {
+//       setLoading(true);
+//       const [projectsData, skillsData, aboutData, experiencesData] = await Promise.all([
+//         api.getProjects(),
+//         api.getSkills(),
+//         api.getAbout(),
+//         api.getExperiences()
+//       ]);
+
+//       setSkills(skillsData);
+//       setProjects(projectsData);
+//       setAbout(aboutData);
+//       setExperiences(experiencesData);
+//     } catch (error) {
+//       console.error('Error refreshing data:', error);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   if (!isAdmin()) {
+//     return null;
+//   }
+
+//   if (loading || !about) {
+//     return (
+//       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+//         <div className="max-w-7xl mx-auto">
+//           <div className="text-center">
+//             <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Loading...</h2>
+//           </div>
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   return (
+//     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+//       <div className="max-w-7xl mx-auto">
+//         <div className="text-center mb-8">
+//           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h2>
+//           <p className="mt-2 text-gray-600 dark:text-gray-400">Manage your portfolio content</p>
+//         </div>
+
+//         {/* Tab Navigation */}
+//         <div className="border-b border-gray-200 dark:border-gray-700 mb-8">
+//           <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+//             {(['skills', 'projects', 'experiences', 'about'] as const).map((tab) => (
+//               <button
+//                 key={tab}
+//                 onClick={() => setActiveTab(tab)}
+//                 className={`
+//                   ${activeTab === tab
+//                     ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+//                     : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
+//                   }
+//                   whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm capitalize
+//                 `}
+//               >
+//                 {tab}
+//               </button>
+//             ))}
+//           </nav>
+//         </div>
+
+//         {/* About Information Summary (shown only when About tab is active) */}
+//         {activeTab === 'about' && (
+//           <div className="mb-8 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+//             <div className="text-center">
+//               <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">{about.name}</h3>
+//               <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">{about.title}</p>
+              
+//               {/* Display profile image */}
+//               {(about.imageData || about.imageUrl) && (
+//                 <div className="flex justify-center mb-6">
+//                   <img 
+//                     src={about.imageData || about.imageUrl} 
+//                     alt={about.name} 
+//                     className="w-48 h-auto rounded-lg shadow-md" 
+//                   />
+//                 </div>
+//               )}
+              
+//               <p className="text-gray-700 dark:text-gray-300 max-w-2xl mx-auto">
+//                 {about.bio.length > 150 ? `${about.bio.substring(0, 150)}...` : about.bio}
+//               </p>
+//             </div>
+//           </div>
+//         )}
+
+//         {/* Tab Content */}
+//         <div className="mt-8">
+//           {activeTab === 'skills' && (
+//             <AdminSkillsManager skills={skills} onUpdate={handleRefreshData} />
+//           )}
+//           {activeTab === 'projects' && (
+//             <AdminProjectsManager projects={projects} onUpdate={handleRefreshData} />
+//           )}
+//           {activeTab === 'experiences' && (
+//             <>
+//               <div className="bg-yellow-100 dark:bg-yellow-900 p-4 mb-4 rounded-md">
+//                 <p className="text-yellow-800 dark:text-yellow-200">
+//                   Debug info: Active tab is &apos;experiences&apos;. Experience data length: {experiences.length}
+//                 </p>
+//               </div>
+//               <AdminExperienceManager experiences={experiences} onUpdate={handleRefreshData} />
+//             </>
+//           )}
+//           {activeTab === 'about' && (
+//             <AdminAboutManager about={about} onUpdate={handleRefreshData} />
+//           )}
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
 </file>
 
 <file path="src/app/experiences/page.tsx">
@@ -3372,6 +2851,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Navigation from "@/components/Navigation";
 import "./globals.css";
+import { Suspense } from 'react'; // Import Suspense
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -3388,6 +2868,24 @@ export const metadata: Metadata = {
   description: "Personal portfolio showcasing my projects and skills",
 };
 
+// Optional: Create a simple loading fallback for the navigation
+function NavigationFallback() {
+  return (
+    <nav className="bg-white dark:bg-gray-800 shadow-lg border-b border-gray-200 dark:border-gray-700">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          {/* Placeholder for nav items */}
+          <div className="flex space-x-4 items-center">
+             <div className="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
+             <div className="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
+             <div className="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -3398,7 +2896,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-gray-50 dark:bg-gray-900`}
       >
-        <Navigation />
+        {/* Wrap Navigation in Suspense */}
+        <Suspense fallback={<NavigationFallback />}>
+          <Navigation />
+        </Suspense>
         <main className="container mx-auto px-4 py-8">
           {children}
         </main>
@@ -3406,6 +2907,45 @@ export default function RootLayout({
     </html>
   );
 }
+
+// import type { Metadata } from "next";
+// import { Geist, Geist_Mono } from "next/font/google";
+// import Navigation from "@/components/Navigation";
+// import "./globals.css";
+
+// const geistSans = Geist({
+//   variable: "--font-geist-sans",
+//   subsets: ["latin"],
+// });
+
+// const geistMono = Geist_Mono({
+//   variable: "--font-geist-mono",
+//   subsets: ["latin"],
+// });
+
+// export const metadata: Metadata = {
+//   title: "Portfolio",
+//   description: "Personal portfolio showcasing my projects and skills",
+// };
+
+// export default function RootLayout({
+//   children,
+// }: Readonly<{
+//   children: React.ReactNode;
+// }>) {
+//   return (
+//     <html lang="en">
+//       <body
+//         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-gray-50 dark:bg-gray-900`}
+//       >
+//         <Navigation />
+//         <main className="container mx-auto px-4 py-8">
+//           {children}
+//         </main>
+//       </body>
+//     </html>
+//   );
+// }
 </file>
 
 <file path="src/app/page.tsx">
@@ -4632,6 +4172,245 @@ export default function AdminAboutManager({ about, onUpdate }: AdminAboutManager
           {isSubmitting ? 'Saving...' : 'Save Changes'}
         </button>
       </form>
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/AdminDashboard.tsx">
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { isAdmin } from '@/lib/auth';
+import { api } from '@/services/api';
+import { Project, Skill, AboutMe, Experience } from '@/types';
+import AdminSkillsManager from '@/components/AdminSkillsManager';
+import AdminProjectsManager from '@/components/AdminProjectsManager';
+import AdminAboutManager from '@/components/AdminAboutManager';
+import AdminExperienceManager from '@/components/AdminExperienceManager';
+import Image from 'next/image'; // Import Image
+
+// Define props if needed, though we fetch data internally here
+// interface AdminDashboardProps { }
+
+export default function AdminDashboard(/* props: AdminDashboardProps */) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<'skills' | 'projects' | 'about' | 'experiences'>('skills');
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [about, setAbout] = useState<AboutMe | null>(null);
+  const [experiences, setExperiences] = useState<Experience[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isPageAdmin, setIsPageAdmin] = useState(false); // Track admin status locally
+
+  useEffect(() => {
+    const adminStatus = isAdmin();
+    setIsPageAdmin(adminStatus);
+    if (!adminStatus) {
+      router.push('/');
+      return; // Early exit if not admin
+    }
+
+    // Set active tab based on URL parameter
+    const validTabs = ['skills', 'projects', 'about', 'experiences'];
+    if (tabParam && validTabs.includes(tabParam)) {
+       setActiveTab(tabParam as typeof activeTab);
+    } else {
+       // Default to 'skills' if tabParam is invalid or missing
+       setActiveTab('skills');
+       // Optionally update URL if needed, though maybe not necessary
+       // router.replace('/admin?tab=skills');
+    }
+
+    const fetchData = async () => {
+      setLoading(true); // Set loading true when fetching starts
+      try {
+        const [skillsData, projectsData, aboutData, experiencesData] = await Promise.all([
+          api.getSkills(),
+          api.getProjects(),
+          api.getAbout(),
+          api.getExperiences()
+        ]);
+
+        console.log('Fetched experiences:', experiencesData);
+
+        setSkills(skillsData);
+        setProjects(projectsData);
+        setAbout(aboutData);
+        setExperiences(experiencesData);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        // Handle error state if necessary
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router, tabParam]); // Re-run if tabParam changes
+
+  // Separate useEffect for tabParam change to only update the active tab state
+  // This prevents redundant data fetching unless explicitly desired on tab change
+  useEffect(() => {
+      const validTabs = ['skills', 'projects', 'about', 'experiences'];
+      if (tabParam && validTabs.includes(tabParam)) {
+          setActiveTab(tabParam as typeof activeTab);
+      } else if (isPageAdmin) { // Only default if user is admin and tab is invalid
+          setActiveTab('skills');
+      }
+  }, [tabParam, isPageAdmin]);
+
+
+  const handleRefreshData = async () => {
+    try {
+      setLoading(true);
+      const [projectsData, skillsData, aboutData, experiencesData] = await Promise.all([
+        api.getProjects(),
+        api.getSkills(),
+        api.getAbout(),
+        api.getExperiences()
+      ]);
+
+      setSkills(skillsData);
+      setProjects(projectsData);
+      setAbout(aboutData);
+      setExperiences(experiencesData);
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Important: Check admin status *before* rendering sensitive content
+  if (!isPageAdmin) {
+     // Render nothing or a redirecting message while router pushes
+     return <div className="min-h-screen flex items-center justify-center"><p>Redirecting...</p></div>;
+  }
+
+  if (loading || !about) {
+    return (
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Loading Admin Dashboard...</h2>
+            {/* Optional: Add a spinner */}
+            <div className="mt-4 inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Function to handle tab clicks and update URL
+  const handleTabClick = (tab: typeof activeTab) => {
+      setActiveTab(tab);
+      router.push(`/admin?tab=${tab}`, { scroll: false }); // Update URL without full page reload
+  };
+
+
+  return (
+    // This is the JSX previously in AdminPage
+     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h2>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">Manage your portfolio content</p>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="border-b border-gray-200 dark:border-gray-700 mb-8">
+          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+            {(['skills', 'projects', 'experiences', 'about'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => handleTabClick(tab)} // Use handler to update URL
+                className={`
+                  ${activeTab === tab
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
+                  }
+                  whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm capitalize
+                `}
+              >
+                {tab}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+         {/* About Information Summary (conditionally rendered) */}
+        {activeTab === 'about' && about && (
+          <div className="mb-8 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+            <div className="text-center">
+              <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">{about.name}</h3>
+              <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">{about.title}</p>
+
+              {/* {(about.imageData || about.imageUrl) && (
+                <div className="flex justify-center mb-6">
+                  <Image // Use next/image
+                      src={imageSource}
+                      alt={about.name}
+                      width={192} // w-48
+                      height={192} // Estimate height
+                      className="rounded-lg shadow-md object-contain"
+                    />
+                </div>
+              )} */}
+                {/* --- START CHANGE --- */}
+              {(() => {
+                // Calculate the source inside this scope
+                const imageSource = about.imageData || about.imageUrl;
+                // Explicitly check if imageSource is a valid string
+                if (imageSource) {
+                  return (
+                    <div className="flex justify-center mb-6">
+                      <Image
+                        src={imageSource} // TS knows imageSource is a string here
+                        alt={about.name}
+                        width={192} // w-48
+                        height={192} // Estimate height
+                        className="rounded-lg shadow-md object-contain"
+                      />
+                    </div>
+                  );
+                }
+                // Return null or an empty fragment if no image source
+                return null;
+              })()}
+              {/* --- END CHANGE --- */}
+              <p className="text-gray-700 dark:text-gray-300 max-w-2xl mx-auto text-left prose dark:prose-invert">
+                {/* Using ReactMarkdown if bio contains markdown */}
+                {about.bio}
+              </p>
+            </div>
+          </div>
+        )}
+
+
+        {/* Tab Content */}
+        <div className="mt-8">
+          {activeTab === 'skills' && (
+            <AdminSkillsManager skills={skills} onUpdate={handleRefreshData} />
+          )}
+          {activeTab === 'projects' && (
+            <AdminProjectsManager projects={projects} onUpdate={handleRefreshData} />
+          )}
+          {activeTab === 'experiences' && (
+            <>
+              {/* Removed debug info */}
+              <AdminExperienceManager experiences={experiences} onUpdate={handleRefreshData} />
+            </>
+          )}
+          {activeTab === 'about' && about && ( // Ensure 'about' is not null
+            <AdminAboutManager about={about} onUpdate={handleRefreshData} />
+          )}
+        </div>
+      </div>
     </div>
   );
 }
