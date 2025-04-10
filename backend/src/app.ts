@@ -16,15 +16,20 @@ config();
 const app = express();
 const port = process.env.PORT || 5000;
 
-const isOnline = false;
+const isOnline = true;
 
 // Middleware
 app.use(express.json());
-app.use(cors({
-  origin: isOnline ? 'https://fluttersystems.com' : '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+if (isOnline) {
+  app.use(cors({
+    origin: 'https://fluttersystems.com',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+  }));
+} else {
+  app.use(cors());
+}
+
 
 
 var base_route = '';
@@ -86,16 +91,16 @@ process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
 
 // Serve static files
-app.use("/portfolio", express.static(path.join(__dirname, "dist")));
+app.use("/portfolio", express.static(path.join(__dirname, "out")));
   
 // Fallback route to serve index.html for any unmatched GET request
 app.get('*', (req: Request, res: Response) => {
   console.log(__dirname);
-  res.sendFile(path.join(__dirname, 'dist/index.html'));
+  res.sendFile(path.join(__dirname, 'out/index.html'));
 });
 
 // Start the server
-app.listen(port, () => {
-console.log(`Server is running on http://localhost:${port}`);
-});
+// app.listen(port, () => {
+// console.log(`Server is running on http://localhost:${port}`);
+// });
 
