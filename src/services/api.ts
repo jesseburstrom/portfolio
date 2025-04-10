@@ -8,7 +8,7 @@ async function fetchWithFallback<T>(endpoint: string, fallbackData: T): Promise<
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    const response = await fetch(`${API_BASE_URL}/api${endpoint}`, {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       signal: controller.signal,
       headers: {
         'Cache-Control': 'no-cache',
@@ -37,14 +37,14 @@ async function fetchWithFallback<T>(endpoint: string, fallbackData: T): Promise<
 // Project API calls
 
 const getProject = async (id: string): Promise<Project> => {
-  const response = await fetch(`${API_BASE_URL}/api/projects/${id}`);
+  const response = await fetch(`${API_BASE_URL}/projects/${id}`);
   if (!response.ok) throw new Error('Failed to fetch project');
   const data = await response.json();
   return data.data;
 };
 
 const createProject = async (project: Omit<Project, '_id'>, token: string): Promise<Project> => {
-  const response = await fetch(`${API_BASE_URL}/api/projects`, {
+  const response = await fetch(`${API_BASE_URL}/projects`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -63,7 +63,7 @@ const createProject = async (project: Omit<Project, '_id'>, token: string): Prom
 };
 
 const updateProject = async (id: string, project: Partial<Project>, token: string): Promise<Project> => {
-  const response = await fetch(`${API_BASE_URL}/api/projects/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/projects/${id}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
@@ -82,7 +82,7 @@ const updateProject = async (id: string, project: Partial<Project>, token: strin
 };
 
 const deleteProject = async (id: string, token: string): Promise<void> => {
-  const response = await fetch(`${API_BASE_URL}/api/projects/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/projects/${id}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`
@@ -97,14 +97,14 @@ const deleteProject = async (id: string, token: string): Promise<void> => {
 
 // Skill API calls
 const getSkill = async (id: string): Promise<Skill> => {
-  const response = await fetch(`${API_BASE_URL}/api/skills/${id}`);
+  const response = await fetch(`${API_BASE_URL}/skills/${id}`);
   if (!response.ok) throw new Error('Failed to fetch skill');
   const data = await response.json();
   return data.data;
 };
 
 const createSkill = async (skill: Omit<Skill, '_id'>, token: string): Promise<Skill> => {
-  const response = await fetch(`${API_BASE_URL}/api/skills`, {
+  const response = await fetch(`${API_BASE_URL}/skills`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -123,7 +123,7 @@ const createSkill = async (skill: Omit<Skill, '_id'>, token: string): Promise<Sk
 };
 
 const updateSkill = async (id: string, skill: Partial<Skill>, token: string): Promise<Skill> => {
-  const response = await fetch(`${API_BASE_URL}/api/skills/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/skills/${id}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
@@ -142,7 +142,7 @@ const updateSkill = async (id: string, skill: Partial<Skill>, token: string): Pr
 };
 
 const deleteSkill = async (id: string, token: string): Promise<void> => {
-  const response = await fetch(`${API_BASE_URL}/api/skills/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/skills/${id}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`
@@ -161,7 +161,7 @@ const getAbout = async (): Promise<AboutMe> => {
 };
 
 const updateAbout = async (about: Partial<AboutMe>, token: string): Promise<AboutMe> => {
-  const response = await fetch(`${API_BASE_URL}/api/about`, {
+  const response = await fetch(`${API_BASE_URL}/about`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -189,7 +189,7 @@ const getExperience = async (id: string): Promise<Experience> => {
 };
 
 const createExperience = async (experience: Omit<Experience, '_id'>, token: string): Promise<Experience> => {
-  const response = await fetch(`${API_BASE_URL}/api/experiences`, {
+  const response = await fetch(`${API_BASE_URL}/experiences`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -208,7 +208,7 @@ const createExperience = async (experience: Omit<Experience, '_id'>, token: stri
 };
 
 const updateExperience = async (id: string, experience: Partial<Experience>, token: string): Promise<Experience> => {
-  const response = await fetch(`${API_BASE_URL}/api/experiences/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/experiences/${id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -228,11 +228,11 @@ const updateExperience = async (id: string, experience: Partial<Experience>, tok
 
 const deleteExperience = async (id: string, token: string): Promise<void> => {
   console.log(`Attempting to delete experience with ID: ${id}`);
-  console.log(`API URL: ${API_BASE_URL}/api/experiences/${id}`);
+  console.log(`API URL: ${API_BASE_URL}/experiences/${id}`);
   
   try {
     // Make sure the URL is properly formatted
-    const url = new URL(`${API_BASE_URL}/api/experiences/${id}`);
+    const url = new URL(`${API_BASE_URL}/experiences/${id}`);
     
     const response = await fetch(url.toString(), {
       method: 'DELETE',
