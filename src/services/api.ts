@@ -1,7 +1,7 @@
 import { AboutMe, Project, Skill, Experience } from '../types';
 import { fallbackAboutMe, fallbackProjects, fallbackSkills, fallbackExperiences } from '../data/fallback';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/portfolioapi';
 
 async function fetchWithFallback<T>(endpoint: string, fallbackData: T): Promise<T> {
   try {
