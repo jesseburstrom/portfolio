@@ -21,6 +21,13 @@ const isOnline = true;
 app.use(express.json());
 app.use(cors());
 
+// ---> ADD THIS MIDDLEWARE <---
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] Received Request: ${req.method} ${req.originalUrl}`);
+  next();
+});
+// ---> END ADD <---
+
 var base_route = '';
 
 if (isOnline)
