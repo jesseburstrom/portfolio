@@ -56,7 +56,7 @@ export default function AdminPage() {
     };
 
     fetchData();
-  }, [router, tabParam]);
+  }, [router, tabParam, activeTab]);
 
   const handleRefreshData = async () => {
     try {
@@ -161,7 +161,7 @@ export default function AdminPage() {
             <>
               <div className="bg-yellow-100 dark:bg-yellow-900 p-4 mb-4 rounded-md">
                 <p className="text-yellow-800 dark:text-yellow-200">
-                  Debug info: Active tab is 'experiences'. Experience data length: {experiences.length}
+                  Debug info: Active tab is &apos;experiences&apos;. Experience data length: {experiences.length}
                 </p>
               </div>
               <AdminExperienceManager experiences={experiences} onUpdate={handleRefreshData} />

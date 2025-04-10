@@ -5,7 +5,6 @@ import { isAdmin, getAuthToken } from '@/lib/auth';
 import { api } from '@/services/api';
 import { AboutMe } from '@/types';
 import { fileToBase64, validateImage, resizeImage } from '@/utils/imageUtils';
-import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 
 export default function AboutPage() {

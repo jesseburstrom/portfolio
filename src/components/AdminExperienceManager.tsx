@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { getAuthToken } from '@/lib/auth';
 import { Experience } from '@/types';
 import { api } from '@/services/api';
@@ -238,7 +238,7 @@ export default function AdminExperienceManager({ experiences, onUpdate }: AdminE
         {experiences.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              No experiences found. Click "Add New Experience" to create one.
+              No experiences found. Click &quot;Add New Experience&quot; to create one.
             </p>
             {!isCreating && !editingId && (
               <button

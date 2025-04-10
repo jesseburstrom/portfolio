@@ -1,5 +1,6 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import * as path from 'path';
 import { config } from 'dotenv';
 import { connectDB } from './config/database';
 import projectRoutes from './routes/projectRoutes';
@@ -15,16 +16,28 @@ config();
 const app = express();
 const port = process.env.PORT || 5000;
 
+const isOnline = false;
+
 // Middleware
-app.use(cors());
 app.use(express.json());
+app.use(cors({
+  origin: isOnline ? 'https://fluttersystems.com' : '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+
+var base_route = '';
+
+if (isOnline)
+  base_route = '/portfolio';
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/skills', skillRoutes);
-app.use('/api/about', aboutRoutes);
-app.use('/api/experiences', experienceRoutes);
+app.use(base_route + '/api/auth', authRoutes);
+app.use(base_route + '/api/projects', projectRoutes);
+app.use(base_route + '/api/skills', skillRoutes);
+app.use(base_route + '/api/about', aboutRoutes);
+app.use(base_route + '/api/experiences', experienceRoutes);
 
 // Handle 404 errors
 app.all('*', (req: Request, res: Response, next: NextFunction) => {
@@ -72,4 +85,17 @@ const gracefulShutdown = () => {
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
 
-export default app;
+// Serve static files
+app.use("/portfolio", express.static(path.join(__dirname, "dist")));
+  
+// Fallback route to serve index.html for any unmatched GET request
+app.get('*', (req: Request, res: Response) => {
+  console.log(__dirname);
+  res.sendFile(path.join(__dirname, 'dist/index.html'));
+});
+
+// Start the server
+app.listen(port, () => {
+console.log(`Server is running on http://localhost:${port}`);
+});
+

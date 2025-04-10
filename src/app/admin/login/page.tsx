@@ -17,7 +17,11 @@ export default function AdminLogin() {
       router.push('/'); // Redirect to home after login
       router.refresh(); // Refresh the page to update admin state
     } catch (err) {
-      setError('Invalid credentials');
+      if (err instanceof Error) {
+        setError('Invalid credentials'); // Use the actual error message
+      } else {
+        setError('Something went wrong'); // Fallback if it's not an Error
+      }
     }
   };
 

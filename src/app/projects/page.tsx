@@ -5,7 +5,7 @@ import { isAdmin, getAuthToken } from '@/lib/auth';
 import { api } from '@/services/api';
 import { Project } from '@/types';
 import Image from 'next/image';
-import { fileToBase64, validateImage, resizeImage, compressImageToMaxSize } from '@/utils/imageUtils';
+import { fileToBase64, validateImage, compressImageToMaxSize } from '@/utils/imageUtils';
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -225,7 +225,7 @@ export default function ProjectsPage() {
           <div>
             <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Projects</h1>
             <p className="mt-4 text-xl text-gray-600 dark:text-gray-400">
-              Here are some of the projects I've worked on
+              Here are some of the projects I&apos;ve worked on
             </p>
           </div>
           

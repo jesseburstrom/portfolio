@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Experience } from '@/types';
 import { api } from '@/services/api';
 import { getAuthToken } from '@/lib/auth';
-import { usePathname } from 'next/navigation';
+//import { usePathname } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 
 interface ExperienceSectionProps {
@@ -24,7 +24,7 @@ export default function ExperienceSection({
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const pathname = usePathname();
+  //const pathname = usePathname();
   
   const [formData, setFormData] = useState<Omit<Experience, '_id'>>({
     title: '',

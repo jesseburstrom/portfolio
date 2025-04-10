@@ -35,12 +35,6 @@ async function fetchWithFallback<T>(endpoint: string, fallbackData: T): Promise<
 }
 
 // Project API calls
-const getProjects = async (): Promise<Project[]> => {
-  const response = await fetch(`${API_BASE_URL}/api/projects`);
-  if (!response.ok) throw new Error('Failed to fetch projects');
-  const data = await response.json();
-  return data.data;
-};
 
 const getProject = async (id: string): Promise<Project> => {
   const response = await fetch(`${API_BASE_URL}/api/projects/${id}`);
@@ -102,13 +96,6 @@ const deleteProject = async (id: string, token: string): Promise<void> => {
 };
 
 // Skill API calls
-const getSkills = async (): Promise<Skill[]> => {
-  const response = await fetch(`${API_BASE_URL}/api/skills`);
-  if (!response.ok) throw new Error('Failed to fetch skills');
-  const data = await response.json();
-  return data.data;
-};
-
 const getSkill = async (id: string): Promise<Skill> => {
   const response = await fetch(`${API_BASE_URL}/api/skills/${id}`);
   if (!response.ok) throw new Error('Failed to fetch skill');

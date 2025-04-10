@@ -1,14 +1,14 @@
 // Type to ensure at least one image source is present
-type ImageSource = {
-  imageUrl: string;
-  imageData?: never;
-} | {
-  imageUrl?: never;
-  imageData: string;
-} | {
-  imageUrl: string;
-  imageData: string;
-};
+// type ImageSource = {
+//   imageUrl: string;
+//   imageData?: never;
+// } | {
+//   imageUrl?: never;
+//   imageData: string;
+// } | {
+//   imageUrl: string;
+//   imageData: string;
+// };
 
 export interface Project {
   _id: string;
