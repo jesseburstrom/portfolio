@@ -28,17 +28,12 @@ app.use((req, res, next) => {
 });
 // ---> END ADD <---
 
-var base_route = '';
-
-if (isOnline)
-  base_route = '/portfolioapi';
-
 // Routes
-app.use(base_route + '/auth', authRoutes);
-app.use(base_route + '/projects', projectRoutes);
-app.use(base_route + '/skills', skillRoutes);
-app.use(base_route + '/about', aboutRoutes);
-app.use(base_route + '/experiences', experienceRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/skills', skillRoutes);
+app.use('/api/about', aboutRoutes);
+app.use('/api/experiences', experienceRoutes);
 
 // Handle 404 errors
 app.all('*', (req: Request, res: Response, next: NextFunction) => {
