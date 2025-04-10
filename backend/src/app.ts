@@ -46,22 +46,21 @@ app.use(base_route + '/api/experiences', experienceRoutes);
 
 // --- Static File Serving (if isOnline) ---
 if (isOnline) {
-  const staticPath = path.resolve(__dirname, '..', '..', 'out'); // Adjust path as needed
+  // Go up from backend/dist/src (or similar) three times to portfolio/ then add 'out'
+  const staticPath = path.resolve(__dirname, '..', '..', '..', 'out');
   console.log(`Serving static files for ${base_route} from: ${staticPath}`);
-  app.use(base_route, express.static(staticPath, {
-     // Optional: Explicitly disable index serving by static middleware if fallback handles it
-     // index: false
-  }));
+  app.use(base_route, express.static(staticPath));
 
   // --- SPA Fallback Route (Handles client-side routes) ---
-  // This MUST come AFTER API routes and static serving, but BEFORE the final 404 handler
   app.get(`${base_route}/*`, (req: Request, res: Response) => {
+    // Use the same staticPath calculation
     const fallbackFile = path.resolve(staticPath, 'index.html');
     console.log(`SPA Fallback: Request for ${req.originalUrl}, serving index.html from: ${fallbackFile}`);
     res.sendFile(fallbackFile, (err) => {
         if (err) {
             console.error("Error sending fallback file:", err);
-            res.status(500).send("Error serving application.");
+            // Send a user-friendly error page or message for file not found
+            res.status(404).send("Application resource not found.");
         }
     });
   });
