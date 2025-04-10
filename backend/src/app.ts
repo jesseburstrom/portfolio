@@ -47,7 +47,7 @@ app.use(base_route + '/api/experiences', experienceRoutes);
 // --- Static File Serving (if isOnline) ---
 if (isOnline) {
   // Path goes from backend/dist/src up to backend/, then into src/out
-  const staticPath = path.resolve(__dirname, '..', '..', 'src', 'out');
+  const staticPath = path.resolve(__dirname, '..', '..', 'backend', 'src', 'out');
   console.log(`Serving static files for ${base_route} from: ${staticPath}`);
   // Verify this path in the logs: e.g., /home/jesse_burstrom_gmail_com/portfolio/backend/src/out
   app.use(base_route, express.static(staticPath));
