@@ -9,8 +9,8 @@ export interface Project {
   title: string;
   description: string;
   technologies: string[];
-  imageUrl?: string;
-  imageData?: string;
+  // Replace single image fields with an array
+  images: string[]; // Array of image URLs or base64 data strings
   // Use the Link type
   link1?: Link;
   link2?: Link;

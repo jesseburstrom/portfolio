@@ -21,8 +21,8 @@ export interface IProject extends Document {
   title: string;
   description: string;
   technologies: string[];
-  imageUrl?: string;
-  imageData?: string;
+  images: string[]; // Array to store image URLs or base64 data strings
+
   // Replace githubUrl and liveUrl with link objects
   link1?: { name: string; url: string };
   link2?: { name: string; url: string };
@@ -45,11 +45,14 @@ const ProjectSchema = new Schema<IProject>({
     type: [String],
     required: [true, 'Technologies are required'],
   },
-  imageUrl: {
-    type: String,
-  },
-  imageData: {
-    type: String,
+  images: {
+    type: [String], // Array of strings
+    validate: [
+        (arr: string[]) => arr.length <= 3, // Validator function
+        'A project can have a maximum of 3 images.' // Error message
+    ],
+    required: [true, 'At least one image is required'], // Require at least one image
+    default: [] // Default to empty array
   },
   // Use the LinkSchema for link1 and link2
   link1: {
@@ -76,10 +79,16 @@ const ProjectSchema = new Schema<IProject>({
 
 // Ensure that either imageUrl or imageData is provided
 ProjectSchema.pre('save', function(next) {
-  if (!this.imageUrl && !this.imageData) {
-    const err = new Error('Either imageUrl or imageData must be provided');
+  if (!this.images || this.images.length === 0) {
+    const err = new Error('At least one project image must be provided');
     return next(err);
   }
+  // Ensure max 3 images (double check, although schema validation should catch it)
+  if (this.images.length > 3) {
+    const err = new Error('A project cannot have more than 3 images.');
+    return next(err);
+  }
+  
   // Ensure names are set if URLs are present
   if (this.link1?.url && !this.link1.name) {
       this.link1.name = 'Live Demo'; // Default if somehow missed

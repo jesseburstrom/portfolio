@@ -21,35 +21,42 @@ const linkValidation = (field: string) => [
 ];
 
 
+// Updated validation for creating projects
 const projectValidation = [
   body('title').trim().notEmpty().withMessage('Title is required'),
   body('description').trim().notEmpty().withMessage('Description is required'),
-  body('technologies').isArray().withMessage('Technologies must be an array'),
-  body().custom((value) => {
-    if (!value.imageUrl && !value.imageData) {
-      throw new Error('Either imageUrl or imageData must be provided');
-    }
-    return true;
-  }),
+  body('technologies').isArray({ min: 1 }).withMessage('At least one technology is required'),
+  // Validate images array
+  body('images')
+    .isArray({ min: 1, max: 3 })
+    .withMessage('Please provide between 1 and 3 images for the project.')
+    .custom((images) => {
+        if (!Array.isArray(images)) return false; // Ensure it's an array
+        // Basic check: Ensure all elements are non-empty strings (URLs or base64)
+        return images.every(img => typeof img === 'string' && img.trim().length > 0);
+    }).withMessage('Invalid image data format.'),
   body('date').trim().notEmpty().withMessage('Date is required'),
-  body('featured').optional().isBoolean(), // Validate featured field
+  body('featured').optional().isBoolean(),
   ...linkValidation('link1'),
   ...linkValidation('link2'),
 ];
 
+// Updated validation for updating projects
 const updateProjectValidation = [
   body('title').optional().trim().notEmpty().withMessage('Title cannot be empty'),
   body('description').optional().trim().notEmpty().withMessage('Description cannot be empty'),
   body('technologies').optional().isArray().withMessage('Technologies must be an array'),
-  body().custom((value) => {
-    // For updates, we only validate if either image field is present
-    if (value.imageUrl === '' || value.imageData === '') {
-      throw new Error('Image URL or data cannot be empty if provided');
-    }
-    return true;
-  }),
+  // Validate images array if present
+  body('images')
+    .optional()
+    .isArray({ min: 1, max: 3 }) // Must have 1-3 images if the field is included in the update
+    .withMessage('If updating images, provide between 1 and 3 images.')
+    .custom((images) => {
+        if (!Array.isArray(images)) return false;
+        return images.every(img => typeof img === 'string' && img.trim().length > 0);
+    }).withMessage('Invalid image data format.'),
   body('date').optional().trim().notEmpty().withMessage('Date cannot be empty'),
-  body('featured').optional().isBoolean(), // Validate featured field
+  body('featured').optional().isBoolean(),
   ...linkValidation('link1'),
   ...linkValidation('link2'),
 ];

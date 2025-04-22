@@ -6,7 +6,12 @@ export const fallbackProjects: Project[] = [
     title: 'E-Commerce Platform',
     description: 'A full-stack e-commerce platform built with Next.js, Node.js, and MongoDB',
     technologies: ['Next.js', 'Node.js', 'MongoDB', 'Tailwind CSS'],
-    imageUrl: 'https://images.unsplash.com/photo-1557821552-17105176677c?q=80&w=1000&h=600',
+    // Use the images array
+    images: [
+        'https://images.unsplash.com/photo-1557821552-17105176677c?q=80&w=1000&h=600&crop=entropy',
+        'https://via.placeholder.com/800x600/0000FF/808080?text=Screenshot+2',
+        'https://via.placeholder.com/800x600/FF0000/FFFFFF?text=Screenshot+3'
+    ],
     link1: { name: 'Live Demo', url: 'https://ecommerce-demo.com' },
     link2: { name: 'GitHub Repo', url: 'https://github.com/username/ecommerce' },
     date: '2024-12',
@@ -17,8 +22,11 @@ export const fallbackProjects: Project[] = [
     title: 'Task Management App',
     description: 'A collaborative task management application with real-time updates',
     technologies: ['React', 'Express', 'Socket.io', 'PostgreSQL'],
-    imageUrl: 'https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?q=80&w=1000&h=600',
-    link1: { name: 'Try It Live', url: '' }, // Example with potentially empty URL
+    // Use the images array
+    images: [
+        'https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?q=80&w=1000&h=600&crop=entropy'
+    ],
+    link1: { name: 'Try It Live', url: '' },
     link2: { name: 'Source Code', url: 'https://github.com/username/taskmanager' },
     date: '2024-09',
     featured: false
