@@ -1,14 +1,8 @@
-// Type to ensure at least one image source is present
-// type ImageSource = {
-//   imageUrl: string;
-//   imageData?: never;
-// } | {
-//   imageUrl?: never;
-//   imageData: string;
-// } | {
-//   imageUrl: string;
-//   imageData: string;
-// };
+// Define Link type
+interface Link {
+  name: string;
+  url: string;
+}
 
 export interface Project {
   _id: string;
@@ -17,8 +11,9 @@ export interface Project {
   technologies: string[];
   imageUrl?: string;
   imageData?: string;
-  githubUrl?: string;
-  liveUrl?: string;
+  // Use the Link type
+  link1?: Link;
+  link2?: Link;
   date: string;
   featured?: boolean;
 }
