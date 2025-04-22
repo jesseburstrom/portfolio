@@ -66,7 +66,6 @@ export default function ProjectsPage() {
       link1: initialLinkState('Live Demo'), // Reset with defaults
       link2: initialLinkState('GitHub')    // Reset with defaults
     });
-    setIsCreating(false);
     setEditingId(null);
     setSelectedImage(null);
     setImagePreview('');
