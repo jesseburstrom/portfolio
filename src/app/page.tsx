@@ -1,11 +1,14 @@
+import { unstable_noStore as noStore } from 'next/cache';
+
 import AboutSection from '@/components/AboutSection';
 import ProjectCard from '@/components/ProjectCard';
-//import SkillsGrid from '@/components/SkillsGrid';
 import TechnicalSkillsList from '@/components/TechnicalSkillsList'; // Import the new component
 import ExperienceSection from '@/components/ExperienceSection';
 import { api } from '@/services/api';
 
 export default async function Home() {
+  noStore(); // Opt out of static rendering / caching for this page
+
   // Fetch all data in parallel
   const [projects, skills, about, experiences] = await Promise.all([
     api.getProjects(),
