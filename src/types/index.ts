@@ -18,12 +18,20 @@ export interface Project {
   featured?: boolean;
 }
 
+export interface Category {
+  _id: string;
+  key: string;
+  displayName: string;
+  order?: number;
+  // Add createdAt/updatedAt if needed from backend
+}
+
 export interface Skill {
   _id: string;
   name: string;
-  category: 'frontend' | 'backend' | 'tools' | 'other';
-  proficiency: number; // 1-5
-  icon?: string;
+  category: Category; // Changed from enum
+  // proficiency?: number; // Removed
+  // icon?: string; // Removed (optional)
 }
 
 export interface AboutMe {

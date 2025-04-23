@@ -4,6 +4,7 @@ import { config } from 'dotenv';
 import { connectDB } from './config/database';
 import projectRoutes from './routes/projectRoutes';
 import skillRoutes from './routes/skillRoutes';
+import categoryRoutes from './routes/categoryRoutes'; // Import category routes
 import aboutRoutes from './routes/aboutRoutes';
 import authRoutes from './routes/authRoutes';
 import experienceRoutes from './routes/experienceRoutes';
@@ -32,6 +33,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/skills', skillRoutes);
 app.use('/api/about', aboutRoutes);
 app.use('/api/experiences', experienceRoutes);
+app.use('/api/categories', categoryRoutes); // Add category routes
 
 // Handle 404 errors
 app.all('*', (req: Request, res: Response, next: NextFunction) => {

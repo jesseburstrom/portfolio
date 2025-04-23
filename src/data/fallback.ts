@@ -34,34 +34,46 @@ export const fallbackProjects: Project[] = [
 ];
 
 export const fallbackSkills: Skill[] = [
-  {
-    _id: '1',
-    name: 'React',
-    category: 'frontend',
-    proficiency: 5,
-    icon: 'react',
-  },
-  {
-    _id: '2',
-    name: 'Node.js',
-    category: 'backend',
-    proficiency: 4,
-    icon: 'nodejs',
-  },
-  {
-    _id: '3',
-    name: 'MongoDB',
-    category: 'backend',
-    proficiency: 4,
-    icon: 'mongodb',
-  },
-  {
-    _id: '4',
-    name: 'TypeScript',
-    category: 'frontend',
-    proficiency: 5,
-    icon: 'typescript',
-  },
+  // Programming
+  { _id: 's1', name: 'Python', category: 'programming' },
+  { _id: 's2', name: '.NET', category: 'programming' },
+  { _id: 's3', name: 'Flutter', category: 'programming' },
+  { _id: 's4', name: 'HTML', category: 'programming' },
+  { _id: 's5', name: 'CSS', category: 'programming' },
+  { _id: 's6', name: 'JavaScript', category: 'programming' },
+  { _id: 's7', name: 'TypeScript', category: 'programming' },
+  { _id: 's8', name: 'React', category: 'programming' },
+  { _id: 's9', name: 'Java', category: 'programming' },
+
+  // Development Tools
+  { _id: 's10', name: 'Visual Studio', category: 'development tools' },
+  { _id: 's11', name: 'VS Code', category: 'development tools' },
+  { _id: 's12', name: 'Android Studio', category: 'development tools' },
+
+  // Database
+  { _id: 's13', name: 'SQL Server', category: 'database' },
+  { _id: 's14', name: 'MySQL', category: 'database' },
+  { _id: 's15', name: 'MongoDB', category: 'database' },
+
+  // Tools & Platforms
+  { _id: 's16', name: 'Azure DevOps', category: 'tools & platforms' },
+  { _id: 's17', name: 'GitHub', category: 'tools & platforms' },
+  { _id: 's18', name: 'GitLab', category: 'tools & platforms' },
+  { _id: 's19', name: 'AWS', category: 'tools & platforms' },
+  { _id: 's20', name: 'GCP', category: 'tools & platforms' },
+
+   // Development Methodologies
+  { _id: 's21', name: 'Full-stack Development', category: 'development methodologies' },
+  { _id: 's22', name: 'Agile', category: 'development methodologies' },
+  { _id: 's23', name: 'CI/CD', category: 'development methodologies' },
+  { _id: 's24', name: 'Jira', category: 'development methodologies' },
+
+   // Operating Systems
+  { _id: 's25', name: 'Windows', category: 'operating systems' },
+  { _id: 's26', name: 'Linux', category: 'operating systems' },
+  { _id: 's27', name: 'Mac', category: 'operating systems' },
+  { _id: 's28', name: 'Android', category: 'operating systems' },
+  { _id: 's29', name: 'iOS', category: 'operating systems' },
 ];
 
 export const fallbackExperiences: Experience[] = [

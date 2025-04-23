@@ -1,6 +1,7 @@
 import AboutSection from '@/components/AboutSection';
 import ProjectCard from '@/components/ProjectCard';
-import SkillsGrid from '@/components/SkillsGrid';
+//import SkillsGrid from '@/components/SkillsGrid';
+import TechnicalSkillsList from '@/components/TechnicalSkillsList'; // Import the new component
 import ExperienceSection from '@/components/ExperienceSection';
 import { api } from '@/services/api';
 
@@ -18,7 +19,12 @@ export default async function Home() {
       <div className="max-w-7xl mx-auto px-4 py-12 space-y-20">
         {/* About Section */}
         <AboutSection about={about} />
-
+        {/* Skills Section */}
+        <section>
+          <TechnicalSkillsList skills={skills} />
+        </section>
+        {/* Experience Section */}
+        <ExperienceSection experiences={experiences} />
         {/* Projects Section */}
         <section>
           <h2 className="text-3xl font-bold mb-8">Projects</h2>
@@ -28,14 +34,7 @@ export default async function Home() {
             ))}
           </div>
         </section>
-
-        {/* Experience Section */}
-        <ExperienceSection experiences={experiences} />
-        {/* Skills Section */}
-        <section>
-          <h2 className="text-3xl font-bold mb-8">Skills</h2>
-          <SkillsGrid skills={skills} />
-        </section>
+        
       </div>
     </main>
   );
