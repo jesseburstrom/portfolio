@@ -37,6 +37,7 @@ export default function ProjectCard({ project /*, isAdmin = false*/ }: ProjectCa
   const handleShrink = (e?: React.MouseEvent | React.KeyboardEvent) => {
      e?.stopPropagation(); // Prevent event bubbling if needed
      setIsExpanded(false);
+     setCurrentImageIndex(0); // Reset image index when shrinking
   };
 
   const handleNextImage = (e: React.MouseEvent) => {
@@ -88,11 +89,7 @@ export default function ProjectCard({ project /*, isAdmin = false*/ }: ProjectCa
     return (
       <>
         {/* Semi-transparent backdrop (Optional, but helps focus) */}
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40"
-          onClick={handleShrink}
-          aria-hidden="true"
-        />
+        
 
         {/* Expanded Card Container - Positioned Centered */}
         <div

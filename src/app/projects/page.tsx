@@ -8,6 +8,7 @@ import { Project } from '@/types';
 import Image from 'next/image';
 import { fileToBase64, validateImage, compressImageToMaxSize } from '@/utils/imageUtils';
 
+const PROJECTS_PER_ROW_LARGE: number = 4;
 const MAX_IMAGES = 3;
 
 // Helper to initialize link state (keep as is)
@@ -31,6 +32,7 @@ export default function ProjectsPage() {
   // Updated formData state to use 'images' array
   const [formData, setFormData] = useState<Partial<Project>>({
     title: '',
+    thumbnailDescription: '',
     description: '',
     technologies: [],
     featured: false,
@@ -63,6 +65,7 @@ export default function ProjectsPage() {
   const resetForm = () => {
     setFormData({
       title: '',
+      thumbnailDescription: '',
       description: '',
       technologies: [],
       featured: false,
@@ -87,6 +90,7 @@ export default function ProjectsPage() {
     setEditingId(project._id);
     setFormData({ // Populate form data
       title: project.title,
+      thumbnailDescription: project.thumbnailDescription || '',
       description: project.description,
       technologies: project.technologies,
       featured: project.featured || false,
@@ -115,6 +119,7 @@ export default function ProjectsPage() {
     // Clear specific form data fields for a new entry
     setFormData({
         title: '',
+        thumbnailDescription: '',
         description: '',
         technologies: [],
         featured: false,
@@ -259,10 +264,6 @@ export default function ProjectsPage() {
         setProjects(prev => prev.map(p => p._id === editingId ? updated : p));
         resetForm();
       }
-
-      //resetForm(); 
-      //await fetchProjects(); // Refetch to ensure sync
-
     } catch (error) {
       console.error('Error saving project:', error);
       alert(`Failed to save project: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -334,6 +335,11 @@ export default function ProjectsPage() {
                <div>
                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
                  <input type="text" value={formData.title || ''} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white" required disabled={isSubmitting} />
+               </div>
+               {/* Thumbnail Description Input (NEW) */}
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Thumbnail Intro Text</label>
+                 <textarea value={formData.thumbnailDescription || ''} onChange={(e) => setFormData({ ...formData, thumbnailDescription: e.target.value })} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white" rows={2} maxLength={150} placeholder="Short introduction for the small card view (max 150 chars)" disabled={isSubmitting} />
                </div>
                {/* Description */}
                <div>
@@ -452,7 +458,7 @@ export default function ProjectsPage() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-${PROJECTS_PER_ROW_LARGE} gap-5 md:gap-6`}>
             {projects.map((project) => (
               <div key={project._id} className="relative group">
                 <ProjectCard project={project} />
