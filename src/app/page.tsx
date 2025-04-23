@@ -24,7 +24,10 @@ export default async function Home() {
           <TechnicalSkillsList skills={skills} />
         </section>
         {/* Experience Section */}
-        <ExperienceSection experiences={experiences} />
+        <section>
+          <ExperienceSection experiences={experiences} />
+        </section>
+        
         {/* Projects Section */}
         <section>
           <h2 className="text-3xl font-bold mb-8">Projects</h2>
