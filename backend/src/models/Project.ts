@@ -19,6 +19,7 @@ const LinkSchema = new Schema({
 
 export interface IProject extends Document {
   title: string;
+  thumbnailDescription?: string; // Short text for the thumbnail view
   description: string;
   technologies: string[];
   images: string[]; // Array to store image URLs or base64 data strings
@@ -35,6 +36,11 @@ const ProjectSchema = new Schema<IProject>({
     type: String,
     required: [true, 'Title is required'],
     trim: true,
+  },
+  thumbnailDescription: {
+    type: String,
+    trim: true,
+    maxlength: [150, 'Thumbnail description cannot exceed 150 characters'] // Example length limit
   },
   description: {
     type: String,

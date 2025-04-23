@@ -7,6 +7,7 @@ interface Link {
 export interface Project {
   _id: string;
   title: string;
+  thumbnailDescription?: string;
   description: string;
   technologies: string[];
   // Replace single image fields with an array

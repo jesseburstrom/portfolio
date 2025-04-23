@@ -24,6 +24,7 @@ const linkValidation = (field: string) => [
 // Updated validation for creating projects
 const projectValidation = [
   body('title').trim().notEmpty().withMessage('Title is required'),
+  body('thumbnailDescription').optional().trim().isLength({ max: 150 }).withMessage('Thumbnail description max 150 chars'),
   body('description').trim().notEmpty().withMessage('Description is required'),
   body('technologies').isArray({ min: 1 }).withMessage('At least one technology is required'),
   // Validate images array
@@ -44,6 +45,7 @@ const projectValidation = [
 // Updated validation for updating projects
 const updateProjectValidation = [
   body('title').optional().trim().notEmpty().withMessage('Title cannot be empty'),
+  body('thumbnailDescription').optional({ nullable: true }).trim().isLength({ max: 150 }).withMessage('Thumbnail description max 150 chars'),
   body('description').optional().trim().notEmpty().withMessage('Description cannot be empty'),
   body('technologies').optional().isArray().withMessage('Technologies must be an array'),
   // Validate images array if present
