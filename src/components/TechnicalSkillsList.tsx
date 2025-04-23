@@ -8,11 +8,6 @@ interface TechnicalSkillsListProps {
   skills: Skill[];
 }
 
-// Helper function to capitalize words (e.g., "tools & platforms" -> "Tools & Platforms")
-function capitalizeWords(str: string): string {
-    return str.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
-}
-
 
 export default function TechnicalSkillsList({ skills }: TechnicalSkillsListProps) {
     const groupedSkills = useMemo(() => {

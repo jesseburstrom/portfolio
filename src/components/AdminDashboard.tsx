@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { isAdmin } from '@/lib/auth';
 import { api } from '@/services/api';
-import { Project, Skill, AboutMe, Experience } from '@/types';
+import { Project, Skill, AboutMe, Experience, Category } from '@/types';
 import AdminSkillsManager from '@/components/AdminSkillsManager';
 import AdminProjectsManager from '@/components/AdminProjectsManager';
 import AdminAboutManager from '@/components/AdminAboutManager';
@@ -23,6 +23,7 @@ export default function AdminDashboard(/* props: AdminDashboardProps */) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [about, setAbout] = useState<AboutMe | null>(null);
   const [experiences, setExperiences] = useState<Experience[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPageAdmin, setIsPageAdmin] = useState(false); // Track admin status locally
 
@@ -48,11 +49,12 @@ export default function AdminDashboard(/* props: AdminDashboardProps */) {
     const fetchData = async () => {
       setLoading(true); // Set loading true when fetching starts
       try {
-        const [skillsData, projectsData, aboutData, experiencesData] = await Promise.all([
+        const [skillsData, projectsData, aboutData, experiencesData, categoriesData] = await Promise.all([
           api.getSkills(),
           api.getProjects(),
           api.getAbout(),
-          api.getExperiences()
+          api.getExperiences(),
+          api.getCategories()
         ]);
 
         console.log('Fetched experiences:', experiencesData);
@@ -61,6 +63,7 @@ export default function AdminDashboard(/* props: AdminDashboardProps */) {
         setProjects(projectsData);
         setAbout(aboutData);
         setExperiences(experiencesData);
+        setCategories(categoriesData);
       } catch (error) {
         console.error('Error fetching data:', error);
         // Handle error state if necessary
@@ -88,17 +91,19 @@ export default function AdminDashboard(/* props: AdminDashboardProps */) {
   const handleRefreshData = async () => {
     try {
       setLoading(true);
-      const [projectsData, skillsData, aboutData, experiencesData] = await Promise.all([
+      const [projectsData, skillsData, aboutData, experiencesData, categoriesData] = await Promise.all([
         api.getProjects(),
         api.getSkills(),
         api.getAbout(),
-        api.getExperiences()
+        api.getExperiences(),
+        api.getCategories()
       ]);
 
       setSkills(skillsData);
       setProjects(projectsData);
       setAbout(aboutData);
       setExperiences(experiencesData);
+      setCategories(categoriesData);
     } catch (error) {
       console.error('Error refreshing data:', error);
     } finally {
@@ -215,7 +220,7 @@ export default function AdminDashboard(/* props: AdminDashboardProps */) {
         {/* Tab Content */}
         <div className="mt-8">
           {activeTab === 'skills' && (
-            <AdminSkillsManager skills={skills} onUpdate={handleRefreshData} />
+            <AdminSkillsManager skills={skills} categories={categories} onUpdate={handleRefreshData} />
           )}
           {activeTab === 'projects' && (
             <AdminProjectsManager projects={projects} onUpdate={handleRefreshData} />

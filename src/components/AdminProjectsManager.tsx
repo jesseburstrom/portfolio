@@ -11,15 +11,19 @@ interface AdminProjectsManagerProps {
   onUpdate: () => void;
 }
 
+// Helper to initialize link state
+const initialLinkState = (defaultName: string) => ({ name: defaultName, url: '' });
+
 export default function AdminProjectsManager({ projects, onUpdate }: AdminProjectsManagerProps) {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [newProject, setNewProject] = useState<Partial<Project>>({
     title: '',
     description: '',
-    liveUrl: '',
-    githubUrl: '',
+    link1: initialLinkState('Live Demo'),
+    link2: initialLinkState('GitHub'),
     technologies: [],
-    featured: false
+    featured: false,
+    images: []
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [techInput, setTechInput] = useState('');
@@ -77,7 +81,7 @@ export default function AdminProjectsManager({ projects, onUpdate }: AdminProjec
 
   const handleEdit = (project: Project) => {
     setEditingProject(project);
-    setImagePreview(project.imageData || project.imageUrl || '');
+    setImagePreview('');
   };
 
   const handleDelete = async (id: string) => {
@@ -86,7 +90,7 @@ export default function AdminProjectsManager({ projects, onUpdate }: AdminProjec
     try {
       setIsSubmitting(true);
       await api.deleteProject(id, getAuthToken() || '');
-      await onUpdate();
+      onUpdate();
     } catch (error) {
       console.error('Error deleting project:', error);
       alert('Failed to delete project');
@@ -104,17 +108,17 @@ export default function AdminProjectsManager({ projects, onUpdate }: AdminProjec
       const updatedProject = { ...editingProject };
       
       if (selectedImage) {
-        const base64 = await fileToBase64(selectedImage);
-        const resized = await resizeImage(base64);
-        updatedProject.imageData = resized;
-        updatedProject.imageUrl = undefined;
+        //const base64 = await fileToBase64(selectedImage);
+        //const resized = await resizeImage(base64);
+        // updatedProject.imageData = resized;
+        // updatedProject.imageUrl = undefined;
       }
 
       await api.updateProject(editingProject._id, updatedProject, getAuthToken() || '');
       setEditingProject(null);
       setSelectedImage(null);
       setImagePreview('');
-      await onUpdate();
+      onUpdate();
     } catch (error) {
       console.error('Error updating project:', error);
       alert('Failed to update project');
@@ -145,8 +149,8 @@ export default function AdminProjectsManager({ projects, onUpdate }: AdminProjec
       setNewProject({
         title: '',
         description: '',
-        liveUrl: '',
-        githubUrl: '',
+        link1: initialLinkState('Live Demo'),
+        link2: initialLinkState('GitHub'),
         technologies: [],
         featured: false
       });
@@ -161,6 +165,35 @@ export default function AdminProjectsManager({ projects, onUpdate }: AdminProjec
       alert('Failed to create project');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleLinkChange = (
+    target: 'new' | 'edit',          // Which state object to update ('newProject' or 'editingProject')
+    linkIndex: 'link1' | 'link2',    // Which link object within the state ('link1' or 'link2')
+    field: 'name' | 'url',           // Which property of the link object ('name' or 'url')
+    value: string                    // The new value from the input
+  ) => {
+    if (target === 'new') {
+      // Update the newProject state
+      setNewProject(prev => ({
+        ...prev, // Keep existing properties
+        // Update the specific link object (link1 or link2)
+        [linkIndex]: {
+          ...(prev[linkIndex] || {}), // Spread the existing link object (or an empty object if it doesn't exist yet)
+          [field]: value              // Update the specific field (name or url) with the new value
+        }
+      }));
+    } else if (editingProject) {
+      // Update the editingProject state (ensure it's not null)
+      setEditingProject(prev => prev ? ({ // Check if prev (editingProject state) is not null
+        ...prev, // Keep existing properties
+        // Update the specific link object (link1 or link2)
+        [linkIndex]: {
+          ...(prev[linkIndex] || {}), // Spread the existing link object
+          [field]: value              // Update the specific field (name or url)
+        }
+      }) : null); // If prev was null, return null (shouldn't happen in this flow but safe)
     }
   };
 
@@ -226,30 +259,70 @@ export default function AdminProjectsManager({ projects, onUpdate }: AdminProjec
               )}
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Live URL
-            </label>
-            <input
-              type="url"
-              value={newProject.liveUrl}
-              onChange={(e) => setNewProject({ ...newProject, liveUrl: e.target.value })}
-              className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
-              disabled={isSubmitting}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              GitHub URL
-            </label>
-            <input
-              type="url"
-              value={newProject.githubUrl}
-              onChange={(e) => setNewProject({ ...newProject, githubUrl: e.target.value })}
-              className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
-              disabled={isSubmitting}
-            />
-          </div>
+          <fieldset className="border dark:border-gray-600 p-4 rounded">
+            <legend className="text-sm font-medium text-gray-700 dark:text-gray-300 px-1">Link 1</legend>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Input for Link 1 Name */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Display Name</label>
+                <input
+                  type="text"
+                  value={newProject.link1?.name || ''} // Use optional chaining and default
+                  // Use handleLinkChange to update newProject.link1.name
+                  onChange={(e) => handleLinkChange('new', 'link1', 'name', e.target.value)}
+                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                  placeholder="e.g., Live Demo"
+                  disabled={isSubmitting}
+                />
+              </div>
+              {/* Input for Link 1 URL */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">URL</label>
+                <input
+                  type="url"
+                  value={newProject.link1?.url || ''} // Use optional chaining and default
+                  // Use handleLinkChange to update newProject.link1.url
+                  onChange={(e) => handleLinkChange('new', 'link1', 'url', e.target.value)}
+                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                  placeholder="https://example.com"
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+          </fieldset>
+
+          {/* --- ADD THIS BLOCK for Link 2 --- */}
+          <fieldset className="border dark:border-gray-600 p-4 rounded">
+            <legend className="text-sm font-medium text-gray-700 dark:text-gray-300 px-1">Link 2</legend>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Input for Link 2 Name */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Display Name</label>
+                <input
+                  type="text"
+                  value={newProject.link2?.name || ''} // Use optional chaining and default
+                  // Use handleLinkChange to update newProject.link2.name
+                  onChange={(e) => handleLinkChange('new', 'link2', 'name', e.target.value)}
+                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                  placeholder="e.g., GitHub Repo"
+                  disabled={isSubmitting}
+                />
+              </div>
+              {/* Input for Link 2 URL */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">URL</label>
+                <input
+                  type="url"
+                  value={newProject.link2?.url || ''} // Use optional chaining and default
+                  // Use handleLinkChange to update newProject.link2.url
+                  onChange={(e) => handleLinkChange('new', 'link2', 'url', e.target.value)}
+                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                  placeholder="https://github.com/repo"
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+          </fieldset>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Technologies (Press Enter to add)
@@ -258,7 +331,7 @@ export default function AdminProjectsManager({ projects, onUpdate }: AdminProjec
               type="text"
               value={techInput}
               onChange={(e) => setTechInput(e.target.value)}
-              onKeyPress={(e) => handleTechKeyPress(e, 'new')}
+              onKeyDown={(e) => handleTechKeyPress(e, 'new')}
               className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
               placeholder="Enter a technology..."
               disabled={isSubmitting}
@@ -355,30 +428,75 @@ export default function AdminProjectsManager({ projects, onUpdate }: AdminProjec
                 )}
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Live URL
-              </label>
-              <input
-                type="url"
-                value={editingProject.liveUrl}
-                onChange={(e) => setEditingProject({ ...editingProject, liveUrl: e.target.value })}
-                className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
-                disabled={isSubmitting}
-              />
+            {/* --- ADD THIS BLOCK for Link 1 (Edit Mode) --- */}
+          <fieldset className="border dark:border-gray-600 p-4 rounded">
+            <legend className="text-sm font-medium text-gray-700 dark:text-gray-300 px-1">Link 1</legend>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Input for Link 1 Name */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Display Name</label>
+                <input
+                  type="text"
+                  // Read value from editingProject state
+                  value={editingProject?.link1?.name || ''}
+                  // Use handleLinkChange targeting 'edit' state
+                  onChange={(e) => handleLinkChange('edit', 'link1', 'name', e.target.value)}
+                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                  placeholder="e.g., Live Demo"
+                  disabled={isSubmitting}
+                />
+              </div>
+              {/* Input for Link 1 URL */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">URL</label>
+                <input
+                  type="url"
+                   // Read value from editingProject state
+                  value={editingProject?.link1?.url || ''}
+                  // Use handleLinkChange targeting 'edit' state
+                  onChange={(e) => handleLinkChange('edit', 'link1', 'url', e.target.value)}
+                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                  placeholder="https://example.com"
+                  disabled={isSubmitting}
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                GitHub URL
-              </label>
-              <input
-                type="url"
-                value={editingProject.githubUrl}
-                onChange={(e) => setEditingProject({ ...editingProject, githubUrl: e.target.value })}
-                className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
-                disabled={isSubmitting}
-              />
+          </fieldset>
+
+          {/* --- ADD THIS BLOCK for Link 2 (Edit Mode) --- */}
+          <fieldset className="border dark:border-gray-600 p-4 rounded">
+            <legend className="text-sm font-medium text-gray-700 dark:text-gray-300 px-1">Link 2</legend>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Input for Link 2 Name */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Display Name</label>
+                <input
+                  type="text"
+                   // Read value from editingProject state
+                  value={editingProject?.link2?.name || ''}
+                  // Use handleLinkChange targeting 'edit' state
+                  onChange={(e) => handleLinkChange('edit', 'link2', 'name', e.target.value)}
+                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                  placeholder="e.g., GitHub Repo"
+                  disabled={isSubmitting}
+                />
+              </div>
+              {/* Input for Link 2 URL */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">URL</label>
+                <input
+                  type="url"
+                   // Read value from editingProject state
+                  value={editingProject?.link2?.url || ''}
+                  // Use handleLinkChange targeting 'edit' state
+                  onChange={(e) => handleLinkChange('edit', 'link2', 'url', e.target.value)}
+                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                  placeholder="https://github.com/repo"
+                  disabled={isSubmitting}
+                />
+              </div>
             </div>
+          </fieldset>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Technologies (Press Enter to add)
@@ -387,7 +505,7 @@ export default function AdminProjectsManager({ projects, onUpdate }: AdminProjec
                 type="text"
                 value={techInput}
                 onChange={(e) => setTechInput(e.target.value)}
-                onKeyPress={(e) => handleTechKeyPress(e, 'edit')}
+                onKeyDown={(e) => handleTechKeyPress(e, 'edit')}
                 className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
                 placeholder="Enter a technology..."
                 disabled={isSubmitting}

@@ -261,7 +261,7 @@ export default function ExperienceSection({
           ) : (
              // Empty State Message (inside the main card)
             <div className="text-center py-10">
-                 <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">No professional experience listed yet.</h3>{shouldShowAdminControls && (<p className="mt-2 text-sm text-gray-500 dark:text-gray-400"> Click "Add Experience" above to get started. </p>)}
+                 <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">No professional experience listed yet.</h3>{shouldShowAdminControls && (<p className="mt-2 text-sm text-gray-500 dark:text-gray-400"> Click &quot;Add Experience&quot; above to get started. </p>)}
             </div>
           )}
         </div>

@@ -7,10 +7,6 @@ import { api } from '@/services/api';
 import { Skill, Category } from '@/types';
 import { useRouter } from 'next/navigation';
 
-function capitalizeWords(str: string): string {
-    return str?.toLowerCase().replace(/\b\w/g, char => char.toUpperCase()) ?? '';
-}
-
 export default function SkillsAdminPage() {
     // --- Existing Skill States ---
     const [skills, setSkills] = useState<Skill[]>([]);
@@ -205,7 +201,7 @@ export default function SkillsAdminPage() {
 
             if (editingCategoryId) {
                 // Prepare data for update (exclude key)
-                const { key, ...updateData } = categoryFormData;
+                const {  ...updateData } = categoryFormData;
                 await api.updateCategory(editingCategoryId, updateData, token);
             } else {
                  // Prepare data for create (include key)
@@ -249,8 +245,8 @@ export default function SkillsAdminPage() {
     if (!isAdminUser) return null; // Should be redirected
 
     // Determine if any form is open
-    const isSkillFormOpen = isCreatingSkill || editingSkillId;
-    const isCategoryFormOpen = isCreatingCategory || editingCategoryId;
+    const isSkillFormOpen = isCreatingSkill || !!editingSkillId;
+    const isCategoryFormOpen = isCreatingCategory || !!editingCategoryId; // Convert to boolean
 
 
     return (

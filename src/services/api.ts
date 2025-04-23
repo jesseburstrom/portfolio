@@ -85,7 +85,7 @@ const deleteCategory = async (id: string, token: string): Promise<void> => { /* 
   const response = await fetch(`${API_BASE_URL}/api/categories/${id}`, { method: 'DELETE', headers: {Authorization: `Bearer ${token}`} });
    if (!response.ok && response.status !== 204) { // Allow 204 No Content
       let msg = `Failed delete category (Status: ${response.status})`;
-      try { const err = await response.json(); msg = err.message || msg; } catch(e){}
+      try { const err = await response.json(); msg = err.message || msg; } catch{}
       throw new Error(msg);
    }
 };
